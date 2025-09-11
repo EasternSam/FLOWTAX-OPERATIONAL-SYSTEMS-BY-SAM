@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional.
- * Version:           5.1.0
+ * Version:           5.1.1
  * Author:            Samuel Diaz Pilier (Mejorado por Gemini)
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -25,7 +25,7 @@ define('FLOWTAX_DEBUG_MODE', true);
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '5.1.0';
+    const VERSION = '5.1.1';
     private static $instance;
 
     private function __construct() {
@@ -56,9 +56,11 @@ final class Flow_Tax_Multiservices_Advanced {
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-assets.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-validator.php';
 
-        // MEJORA: Carga condicional del nuevo sistema de depuración.
-        if (FLOWTAX_DEBUG_MODE) {
-            require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php';
+        // SOLUCIÓN TEMPORAL: Se comprueba si el archivo existe antes de intentar cargarlo.
+        // Esto evita el error crítico si el archivo falta o no se puede leer.
+        $debugger_path = FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php';
+        if (FLOWTAX_DEBUG_MODE && file_exists($debugger_path)) {
+            require_once $debugger_path;
         }
     }
 
@@ -78,7 +80,6 @@ final class Flow_Tax_Multiservices_Advanced {
     }
 
     public function add_admin_menu() {
-        // MEJORA: Indicador visual en el menú cuando el modo debug está activo.
         $indicator = FLOWTAX_DEBUG_MODE ? ' <span style="color: #f56565; font-weight: bold;">(Debug)</span>' : '';
         add_menu_page('Flow Tax Manager', 'Flow Tax' . $indicator, 'manage_options', 'flow-tax-manager', array($this, 'admin_dashboard_page'), 'dashicons-businesswoman', 6);
     }
@@ -113,3 +114,4 @@ final class Flow_Tax_Multiservices_Advanced {
 
 // Iniciar el plugin
 Flow_Tax_Multiservices_Advanced::get_instance();
+
