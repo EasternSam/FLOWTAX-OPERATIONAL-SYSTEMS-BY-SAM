@@ -1,0 +1,60 @@
+/* Estilos adicionales para profesionalizar la interfaz */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Estilo de los botones */
+.btn {
+    @apply font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300;
+}
+.btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md;
+}
+.btn-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+}
+.btn-danger {
+    @apply bg-red-500 text-white hover:bg-red-600;
+}
+
+/* Estilo de las tarjetas (cards) */
+.card {
+    @apply bg-white p-6 rounded-xl shadow-lg transition-all duration-300;
+}
+
+.card-header {
+    @apply border-b border-gray-200 pb-4 mb-4;
+}
+
+.card-title {
+    @apply text-xl font-bold text-gray-800;
+}
+
+/* Estilo de los formularios */
+.form-input, .form-select, .form-textarea {
+     @apply w-full border-2 border-gray-300 p-2 rounded-md mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
+}
+
+.form-label {
+    @apply font-semibold text-gray-700;
+}
+
+/* Estilo de la tabla */
+.data-table {
+    @apply w-full text-left;
+}
+
+.data-table th {
+    @apply p-3 bg-gray-100 text-sm font-semibold text-gray-600 uppercase tracking-wider;
+}
+
+.data-table td {
+    @apply p-3 border-b border-gray-200;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
