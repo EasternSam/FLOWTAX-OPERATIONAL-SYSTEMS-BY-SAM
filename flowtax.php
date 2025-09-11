@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional.
- * Version:           5.0.1
+ * Version:           5.1.0
  * Author:            Samuel Diaz Pilier (Mejorado por Gemini)
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -16,13 +16,16 @@ if (!defined('WPINC')) {
     die;
 }
 
+// MEJORA: Control centralizado para activar/desactivar el modo de depuración.
+define('FLOWTAX_DEBUG_MODE', true);
+
 /**
  * Clase principal del plugin.
  * Organiza la carga de todos los componentes del sistema.
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '5.0.1';
+    const VERSION = '5.1.0';
     private static $instance;
 
     private function __construct() {
@@ -51,8 +54,12 @@ final class Flow_Tax_Multiservices_Advanced {
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-spa-renderer.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-ajax-handler.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-assets.php';
-        // CORRECCIÓN: El nombre del archivo era incorrecto. Se ha cambiado a 'class-flowtax-validator.php'.
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-validator.php';
+
+        // MEJORA: Carga condicional del nuevo sistema de depuración.
+        if (FLOWTAX_DEBUG_MODE) {
+            require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php';
+        }
     }
 
     private function init_hooks() {
@@ -71,7 +78,9 @@ final class Flow_Tax_Multiservices_Advanced {
     }
 
     public function add_admin_menu() {
-        add_menu_page('Flow Tax Manager', 'Flow Tax', 'manage_options', 'flow-tax-manager', array($this, 'admin_dashboard_page'), 'dashicons-businesswoman', 6);
+        // MEJORA: Indicador visual en el menú cuando el modo debug está activo.
+        $indicator = FLOWTAX_DEBUG_MODE ? ' <span style="color: #f56565; font-weight: bold;">(Debug)</span>' : '';
+        add_menu_page('Flow Tax Manager', 'Flow Tax' . $indicator, 'manage_options', 'flow-tax-manager', array($this, 'admin_dashboard_page'), 'dashicons-businesswoman', 6);
     }
 
     public function admin_dashboard_page() {
@@ -81,10 +90,9 @@ final class Flow_Tax_Multiservices_Advanced {
     }
 
     public function activate() {
-        Flowtax_CPTs::register_all(); // Llama a los métodos estáticos
+        Flowtax_CPTs::register_all();
         Flowtax_CPTs::insert_initial_terms();
         
-        // Crear la página de inicio si no existe
         if (!get_page_by_path('inicio')) {
             wp_insert_post([
                 'post_title'   => 'Inicio Gestión',
@@ -105,4 +113,3 @@ final class Flow_Tax_Multiservices_Advanced {
 
 // Iniciar el plugin
 Flow_Tax_Multiservices_Advanced::get_instance();
-

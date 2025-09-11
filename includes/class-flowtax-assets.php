@@ -1,60 +1,59 @@
-/* Estilos adicionales para profesionalizar la interfaz */
+<?php
+/**
+ * Flowtax_Assets
+ *
+ * Se encarga de registrar y cargar los archivos CSS y JavaScript
+ * necesarios para la Single Page Application (SPA).
+ *
+ * @since 5.0.0
+ */
+class Flowtax_Assets {
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    public static function init() {
+        // Engancha la función de carga de assets en el hook correcto de WordPress.
+        add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue_spa_assets'));
+    }
 
-body {
-    font-family: 'Inter', sans-serif;
-}
+    public static function enqueue_spa_assets() {
+        // Solo carga los archivos en la página designada como 'inicio'.
+        if (!is_page('inicio')) {
+            return;
+        }
 
-/* Estilo de los botones */
-.btn {
-    @apply font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300;
-}
-.btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md;
-}
-.btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
-}
-.btn-danger {
-    @apply bg-red-500 text-white hover:bg-red-600;
-}
+        // Carga la hoja de estilos principal de la SPA.
+        wp_enqueue_style(
+            'flowtax-spa-styles',
+            FLOWTAX_MS_PLUGIN_URL . 'assets/css/spa-styles.css',
+            [],
+            FLOWTAX_MS_VERSION
+        );
 
-/* Estilo de las tarjetas (cards) */
-.card {
-    @apply bg-white p-6 rounded-xl shadow-lg transition-all duration-300;
-}
+        // Carga el archivo JavaScript principal de la SPA.
+        wp_enqueue_script(
+            'flowtax-spa-main',
+            FLOWTAX_MS_PLUGIN_URL . 'assets/js/spa-main.js',
+            [],
+            FLOWTAX_MS_VERSION,
+            true // Carga el script en el footer.
+        );
 
-.card-header {
-    @apply border-b border-gray-200 pb-4 mb-4;
-}
+        // Prepara un array de datos para pasar de PHP a JavaScript.
+        $ajax_params = [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('flowtax_ajax_nonce'),
+            'home_url' => home_url('/inicio/')
+        ];
 
-.card-title {
-    @apply text-xl font-bold text-gray-800;
-}
+        // MEJORA: Añade la configuración del modo de depuración para el frontend.
+        // Esto permite que el JavaScript sepa si debe mostrar la consola de depuración.
+        $ajax_params['debug_mode'] = defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE;
 
-/* Estilo de los formularios */
-.form-input, .form-select, .form-textarea {
-     @apply w-full border-2 border-gray-300 p-2 rounded-md mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
-}
-
-.form-label {
-    @apply font-semibold text-gray-700;
-}
-
-/* Estilo de la tabla */
-.data-table {
-    @apply w-full text-left;
-}
-
-.data-table th {
-    @apply p-3 bg-gray-100 text-sm font-semibold text-gray-600 uppercase tracking-wider;
-}
-
-.data-table td {
-    @apply p-3 border-b border-gray-200;
-}
-
-.data-table tr:last-child td {
-    border-bottom: none;
+        // Hace que los datos de $ajax_params estén disponibles en JavaScript
+        // a través del objeto `flowtax_ajax`.
+        wp_localize_script(
+            'flowtax-spa-main',
+            'flowtax_ajax',
+            $ajax_params
+        );
+    }
 }
