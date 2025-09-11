@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional.
- * Version:           5.0.0
+ * Version:           5.0.1
  * Author:            Samuel Diaz Pilier (Mejorado por Gemini)
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if (!defined('WPINC')) {
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '5.0.0';
+    const VERSION = '5.0.1';
     private static $instance;
 
     private function __construct() {
@@ -51,7 +51,8 @@ final class Flow_Tax_Multiservices_Advanced {
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-spa-renderer.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-ajax-handler.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-assets.php';
-        require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-data-validator.php';
+        // CORRECCIÓN: El nombre del archivo era incorrecto. Se ha cambiado a 'class-flowtax-validator.php'.
+        require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-validator.php';
     }
 
     private function init_hooks() {
@@ -104,3 +105,4 @@ final class Flow_Tax_Multiservices_Advanced {
 
 // Iniciar el plugin
 Flow_Tax_Multiservices_Advanced::get_instance();
+
