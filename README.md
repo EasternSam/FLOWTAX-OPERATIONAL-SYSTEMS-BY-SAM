@@ -1,2 +1,0 @@
-# FLOWTAX-OPERATIONAL-SYSTEMS-BY-SAM
-Sistema de Gestión FlowTax.
