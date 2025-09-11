@@ -61,22 +61,31 @@ class Flowtax_Ajax_Handler {
 
     public static function handle_get_view() {
         self::check_permissions();
-        if (defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE) Flowtax_Debugger::log($_GET, 'AJAX: get_view');
+        if (defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE) Flowtax_Debugger::log($_POST, 'AJAX: get_view');
 
         $view = isset($_POST['view']) ? sanitize_key($_POST['view']) : 'dashboard';
         $action = isset($_POST['flowtax_action']) ? sanitize_key($_POST['flowtax_action']) : 'list';
         $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         
         ob_start();
-        $view_path = FLOWTAX_MS_PLUGIN_DIR . "views/view-{$view}.php";
-        if (file_exists($view_path)) {
-            include $view_path;
-        } else {
-            if (defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE) Flowtax_Debugger::log("Vista no encontrada: {$view_path}. Cargando dashboard.", 'Warning');
-            include FLOWTAX_MS_PLUGIN_DIR . 'views/view-dashboard.php';
+        
+        try {
+            $view_path = FLOWTAX_MS_PLUGIN_DIR . "views/view-{$view}.php";
+            if (file_exists($view_path)) {
+                include $view_path;
+            } else {
+                if (defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE) Flowtax_Debugger::log("Vista no encontrada: {$view_path}. Cargando dashboard.", 'Warning');
+                include FLOWTAX_MS_PLUGIN_DIR . 'views/view-dashboard.php';
+            }
+            $html = ob_get_clean();
+            wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['html' => $html]));
+
+        } catch (Throwable $e) {
+            ob_end_clean(); // Limpia el buffer si hay un error
+            $error_message = 'Error fatal al renderizar la vista: ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine();
+            if(defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE) Flowtax_Debugger::log($error_message, 'Fatal Error');
+            wp_send_json_error(Flowtax_Debugger::send_logs_in_ajax_response(['message' => $error_message]), 500);
         }
-        $html = ob_get_clean();
-        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['html' => $html]));
     }
     
     public static function handle_save_form() {
@@ -131,7 +140,7 @@ class Flowtax_Ajax_Handler {
         ]));
     }
 
-    private static function get_view_for_post_type($post_type) {
+    public static function get_view_for_post_type($post_type) {
         $map = [
             'impuestos' => 'impuestos',
             'peticion_familiar' => 'inmigracion',
@@ -143,10 +152,13 @@ class Flowtax_Ajax_Handler {
             'transaccion' => 'transacciones',
             'cliente' => 'clientes'
         ];
-        return $map[$post_type] ?? 'dashboard';
+        return isset($map[$post_type]) ? $map[$post_type] : 'dashboard';
     }
     
     public static function format_post_data($post) {
+        if (!$post instanceof WP_Post) {
+            return []; // Retorna un array vacío si no es un objeto de post válido
+        }
         $post_id = $post->ID;
         $cliente_id = get_post_meta($post_id, '_cliente_id', true);
         $cliente_nombre = $cliente_id ? get_the_title($cliente_id) : 'N/A';
@@ -158,17 +170,24 @@ class Flowtax_Ajax_Handler {
             $estado_color = get_term_meta($estado_terms[0]->term_id, 'color_class', true);
         }
         
+        $post_type_obj = get_post_type_object(get_post_type($post_id));
+        $singular_name = $post_type_obj ? $post_type_obj->labels->singular_name : '';
+        
         return [
             'ID' => $post_id,
             'title' => get_the_title($post_id),
             'post_type' => get_post_type($post_id),
-            'singular_name' => get_post_type_object(get_post_type($post_id))->labels->singular_name,
+            'singular_name' => $singular_name,
             'cliente_nombre' => $cliente_nombre,
             'estado' => $estado,
             'estado_color' => $estado_color,
             'fecha' => get_the_date('d/m/Y', $post_id),
             'email' => get_post_meta($post_id, '_email', true),
             'telefono' => get_post_meta($post_id, '_telefono', true),
+            'ano_fiscal' => get_post_meta($post_id, '_ano_fiscal', true),
+            'idioma_origen' => get_post_meta($post_id, '_idioma_origen', true),
+            'idioma_destino' => get_post_meta($post_id, '_idioma_destino', true),
         ];
     }
 }
+

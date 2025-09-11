@@ -6,60 +6,102 @@ $counts = [
     'clientes' => wp_count_posts('cliente')->publish,
     'traducciones' => wp_count_posts('traduccion')->publish,
 ];
+
+// Obtener los 5 casos más recientes
+$recent_query = new WP_Query([
+    'post_type' => ['impuestos', 'peticion_familiar', 'ciudadania', 'renovacion_residencia', 'traduccion'],
+    'posts_per_page' => 5,
+    'orderby' => 'date',
+    'order' => 'DESC'
+]);
+
 ?>
 <div class="p-8">
-    <header class="flex justify-between items-center mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">Panel de Control</h1>
-            <p class="text-gray-500">Resumen general del sistema.</p>
-        </div>
-        <a href="<?php echo wp_logout_url(home_url()); ?>" class="btn btn-secondary"><i class="fas fa-sign-out-alt mr-2"></i>Salir</a>
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Panel de Control</h1>
+        <p class="text-gray-500 mt-1">Bienvenido de nuevo, aquí tienes un resumen de la actividad reciente.</p>
     </header>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="card">
-            <h2 class="text-gray-500 font-semibold">Casos de Impuestos</h2>
-            <p class="text-4xl font-bold text-blue-600"><?php echo $counts['impuestos']; ?></p>
-        </div>
-        <div class="card">
-            <h2 class="text-gray-500 font-semibold">Casos de Inmigración</h2>
-            <p class="text-4xl font-bold text-purple-600"><?php echo $counts['inmigracion']; ?></p>
-        </div>
-        <div class="card">
-            <h2 class="text-gray-500 font-semibold">Clientes Activos</h2>
-            <p class="text-4xl font-bold text-green-600"><?php echo $counts['clientes']; ?></p>
-        </div>
-         <div class="card">
-            <h2 class="text-gray-500 font-semibold">Traducciones</h2>
-            <p class="text-4xl font-bold text-yellow-600"><?php echo $counts['traducciones']; ?></p>
-        </div>
-    </div>
-
-    <!-- Módulos -->
-    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Módulos del Sistema</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <?php
-        $modules = [
-            ['view' => 'impuestos', 'title' => 'Impuestos', 'icon' => 'fa-calculator', 'color' => 'blue'],
-            ['view' => 'inmigracion', 'title' => 'Inmigración', 'icon' => 'fa-flag-usa', 'color' => 'purple'],
-            ['view' => 'payroll', 'title' => 'Payroll', 'icon' => 'fa-money-check-dollar', 'color' => 'green'],
-            ['view' => 'traducciones', 'title' => 'Traducciones', 'icon' => 'fa-language', 'color' => 'yellow'],
-            ['view' => 'transacciones', 'title' => 'Pagos y Cheques', 'icon' => 'fa-cash-register', 'color' => 'indigo'],
-            ['view' => 'clientes', 'title' => 'Clientes', 'icon' => 'fa-users', 'color' => 'pink'],
+        $kpis = [
+            ['title' => 'Casos de Impuestos', 'count' => $counts['impuestos'], 'icon' => 'fa-calculator', 'color' => 'blue'],
+            ['title' => 'Casos de Inmigración', 'count' => $counts['inmigracion'], 'icon' => 'fa-flag-usa', 'color' => 'purple'],
+            ['title' => 'Clientes Activos', 'count' => $counts['clientes'], 'icon' => 'fa-users', 'color' => 'green'],
+            ['title' => 'Traducciones', 'count' => $counts['traducciones'], 'icon' => 'fa-language', 'color' => 'yellow']
         ];
-        foreach ($modules as $module) {
+        foreach ($kpis as $kpi) {
             echo <<<HTML
-            <a href="#" data-spa-link data-view="{$module['view']}" class="block card hover:shadow-xl hover:-translate-y-1">
-                <div class="flex items-center">
-                    <div class="bg-{$module['color']}-100 p-3 rounded-full">
-                        <i class="fas {$module['icon']} fa-lg text-{$module['color']}-600"></i>
-                    </div>
-                    <h3 class="ml-4 text-xl font-bold text-gray-800">{$module['title']}</h3>
+            <div class="card flex items-center p-5">
+                <div class="bg-{$kpi['color']}-100 p-4 rounded-full">
+                    <i class="fas {$kpi['icon']} fa-xl text-{$kpi['color']}-600"></i>
                 </div>
-            </a>
+                <div class="ml-4">
+                    <p class="text-gray-500 font-medium">{$kpi['title']}</p>
+                    <p class="text-3xl font-bold text-gray-800">{$kpi['count']}</p>
+                </div>
+            </div>
 HTML;
         }
         ?>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Acciones Rápidas -->
+        <div class="lg:col-span-1">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Acciones Rápidas</h2>
+            <div class="card space-y-3">
+                 <?php
+                $quick_actions = [
+                    ['view' => 'impuestos', 'action' => 'create', 'title' => 'Nuevo Caso de Impuestos', 'icon' => 'fa-plus', 'color' => 'blue'],
+                    ['view' => 'inmigracion', 'action' => 'create', 'title' => 'Nuevo Caso de Inmigración', 'icon' => 'fa-plus', 'color' => 'purple'],
+                    ['view' => 'clientes', 'action' => 'create', 'title' => 'Añadir Cliente', 'icon' => 'fa-user-plus', 'color' => 'green'],
+                    ['view' => 'transacciones', 'action' => 'create', 'title' => 'Registrar Pago', 'icon' => 'fa-dollar-sign', 'color' => 'indigo'],
+                ];
+                 foreach ($quick_actions as $action) {
+                     echo <<<HTML
+                    <a href="#" data-spa-link data-view="{$action['view']}" data-action="{$action['action']}" class="block w-full text-left p-3 rounded-lg hover:bg-gray-100 transition-colors">
+                        <i class="fas {$action['icon']} text-{$action['color']}-500 mr-3"></i>
+                        <span class="font-medium text-gray-700">{$action['title']}</span>
+                    </a>
+HTML;
+                 }
+                ?>
+            </div>
+        </div>
+        <!-- Actividad Reciente -->
+        <div class="lg:col-span-2">
+             <h2 class="text-xl font-semibold text-gray-800 mb-4">Actividad Reciente</h2>
+             <div class="card">
+                <div class="divide-y divide-gray-100">
+                    <?php
+                    if ($recent_query->have_posts()) :
+                        while ($recent_query->have_posts()) : $recent_query->the_post();
+                            $post_id = get_the_ID();
+                            $post_type_obj = get_post_type_object(get_post_type());
+                            $cliente_id = get_post_meta($post_id, '_cliente_id', true);
+                            $cliente_nombre = $cliente_id ? get_the_title($cliente_id) : 'N/A';
+                            $view_slug = Flowtax_Ajax_Handler::get_view_for_post_type(get_post_type());
+                    ?>
+                        <div class="p-3 hover:bg-gray-50 flex justify-between items-center">
+                            <div>
+                                <a href="#" data-spa-link data-view="<?php echo $view_slug; ?>" data-action="edit" data-id="<?php echo $post_id; ?>" class="font-semibold text-blue-600 hover:underline"><?php the_title(); ?></a>
+                                <p class="text-sm text-gray-500">
+                                    <?php echo $post_type_obj->labels->singular_name; ?> para <?php echo esc_html($cliente_nombre); ?>
+                                </p>
+                            </div>
+                             <span class="text-sm text-gray-400"><?php echo get_the_date('d M Y'); ?></span>
+                        </div>
+                    <?php
+                        endwhile;
+                        wp_reset_postdata();
+                    else :
+                        echo '<p class="text-center text-gray-500 p-4">No hay actividad reciente.</p>';
+                    endif;
+                    ?>
+                </div>
+             </div>
+        </div>
     </div>
 </div>

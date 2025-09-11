@@ -5,21 +5,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * MEJORA: Módulo de depuración avanzado para el frontend.
-     * Crea una consola visual en la parte inferior de la pantalla si el modo debug
-     * está activado en el backend.
+     * Crea una consola visual que está oculta por defecto y se puede mostrar
+     * con un botón o un atajo de teclado si el modo debug está activado.
      */
     const Debug = {
         enabled: window.flowtax_ajax?.debug_mode || false,
         panel: null,
+        panelContainer: null, // Referencia al contenedor principal del panel
 
         init() {
             if (!this.enabled) return;
             this.createPanel();
-            this.log('Debugger inicializado.', 'System');
+            this.createDebugButton();
+            this.setupKeyboardShortcut();
+            this.log('Debugger inicializado. Presiona Ctrl+Shift+D o usa el botón para mostrar/ocultar.', 'System');
         },
 
         createPanel() {
             const panel = document.createElement('div');
+            this.panelContainer = panel; // Guardar referencia
             panel.id = 'flowtax-debug-panel';
             panel.innerHTML = `
                 <div id="debug-header" style="background: #1a202c; color: white; padding: 8px 12px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a5568;">
@@ -36,26 +40,69 @@ document.addEventListener('DOMContentLoaded', function () {
             panel.style.left = '0';
             panel.style.width = '100%';
             panel.style.zIndex = '99999';
+            panel.style.display = 'none'; // Oculto por defecto
             document.body.appendChild(panel);
             this.panel = panel.querySelector('#debug-content');
 
             const header = panel.querySelector('#debug-header');
             const toggleBtn = panel.querySelector('#debug-toggle');
             const clearBtn = panel.querySelector('#debug-clear');
-
+            
             header.addEventListener('click', (e) => {
                 if (e.target !== toggleBtn && e.target !== clearBtn) {
-                    this.togglePanel();
+                    this.togglePanelContent();
                 }
             });
-            toggleBtn.addEventListener('click', (e) => { e.stopPropagation(); this.togglePanel(); });
+            toggleBtn.addEventListener('click', (e) => { e.stopPropagation(); this.togglePanelContent(); });
             clearBtn.addEventListener('click', (e) => { e.stopPropagation(); this.clear(); });
+        },
+
+        createDebugButton() {
+            const button = document.createElement('button');
+            button.id = 'flowtax-debug-toggle-button';
+            button.innerHTML = '<i class="fas fa-bug"></i>';
+            button.style.position = 'fixed';
+            button.style.bottom = '15px';
+            button.style.right = '15px';
+            button.style.width = '50px';
+            button.style.height = '50px';
+            button.style.background = '#1a202c';
+            button.style.color = 'white';
+            button.style.border = '2px solid #4a5568';
+            button.style.borderRadius = '50%';
+            button.style.zIndex = '99998';
+            button.style.cursor = 'pointer';
+            button.style.fontSize = '20px';
+            button.style.display = 'flex';
+            button.style.justifyContent = 'center';
+            button.style.alignItems = 'center';
+            button.title = 'Mostrar/Ocultar Consola de Depuración (Ctrl+Shift+D)';
+
+            button.addEventListener('click', () => this.toggleVisibility());
+            document.body.appendChild(button);
+        },
+        
+        setupKeyboardShortcut() {
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+                    e.preventDefault();
+                    this.toggleVisibility();
+                }
+            });
+        },
+        
+        toggleVisibility() {
+            if (!this.panelContainer) return;
+            const isVisible = this.panelContainer.style.display === 'block';
+            this.panelContainer.style.display = isVisible ? 'none' : 'block';
         },
 
         log(message, context = 'General') {
             if (!this.enabled) return;
             const timestamp = new Date().toLocaleTimeString();
             console.log(`[${context}]`, message);
+            
+            if (!this.panel) return;
 
             const entry = document.createElement('div');
             entry.style.borderBottom = '1px solid #4a5568';
@@ -98,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.panel.scrollTop = this.panel.scrollHeight;
         },
 
-        togglePanel() {
+        togglePanelContent() {
             const content = this.panel.parentElement.querySelector('#debug-content');
             const toggleBtn = this.panel.parentElement.querySelector('#debug-toggle');
             const isHidden = content.style.display === 'none';
@@ -107,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         clear() {
+            if (!this.panel) return;
             this.panel.innerHTML = '';
             this.log('Panel limpiado.', 'System');
         }
@@ -119,10 +167,19 @@ document.addEventListener('DOMContentLoaded', function () {
         init() {
             Debug.init();
             window.addEventListener('popstate', this.handlePopState.bind(this));
-            appRoot.addEventListener('click', this.handleEvents.bind(this));
+            document.body.addEventListener('click', this.handleEvents.bind(this)); // Escucha en el body para los links del sidebar
             appRoot.addEventListener('submit', this.handleFormSubmit.bind(this));
             appRoot.addEventListener('input', this.handleSearch.bind(this));
             this.loadViewFromUrl();
+        },
+
+        updateActiveSidebarLink(view) {
+             document.querySelectorAll('#spa-sidebar .sidebar-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.view === view) {
+                    link.classList.add('active');
+                }
+            });
         },
 
         showNotification(message, type = 'success') {
@@ -148,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         
         showLoader() {
-            appRoot.innerHTML = `<div class="flex justify-center items-center min-h-screen"><i class="fas fa-spinner fa-spin fa-3x text-blue-600"></i></div>`;
+            appRoot.innerHTML = `<div class="flex justify-center items-center h-full"><i class="fas fa-spinner fa-spin fa-3x text-blue-600"></i></div>`;
         },
 
         async loadView(view, action = 'list', id = 0, pushState = true) {
@@ -156,13 +213,17 @@ document.addEventListener('DOMContentLoaded', function () {
             Debug.log(`Cargando vista: view=${view}, action=${action}, id=${id}`, 'Navigation');
             
             const url = new URL(flowtax_ajax.home_url);
-            url.pathname += `${view}/${action !== 'list' ? `${action}/${id > 0 ? id : ''}` : ''}`;
+            let path = view;
+            if (action !== 'list') path += `/${action}`;
+            if (id > 0) path += `/${id}`;
+            url.pathname += path;
 
             if (pushState) {
                 history.pushState({ view, action, id }, '', url.toString());
             }
             
             currentView = view;
+            this.updateActiveSidebarLink(view);
 
             try {
                 const params = new URLSearchParams({
@@ -178,11 +239,26 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: params
                 });
                 Debug.log({ status: response.status, url: response.url }, 'AJAX Response Status');
-                const result = await response.json();
+                
+                const textResponse = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(textResponse);
+                } catch (e) {
+                    Debug.log(`Error de JSON: ${e.message}`, 'AJAX Error');
+                    Debug.log(textResponse, 'Respuesta no válida');
+                    throw new Error(`Respuesta inesperada del servidor: ${textResponse.substring(0, 100)}`);
+                }
+
 
                 if (result.success) {
                     appRoot.innerHTML = result.data.html;
-                    appRoot.firstChild.classList.add('fade-in');
+                    // Espera a que el DOM se actualice y luego añade la clase.
+                    setTimeout(() => {
+                         if (appRoot.firstChild && typeof appRoot.firstChild.classList !== 'undefined') {
+                             appRoot.firstChild.classList.add('fade-in');
+                         }
+                    }, 0);
                     Debug.renderBackendLogs(result.data.debug_logs);
                 } else {
                     throw new Error(result.data.message || 'Error desconocido.');
@@ -195,7 +271,6 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         
         loadViewFromUrl() {
-            // Lógica mejorada para leer rutas amigables, ej: /inicio/impuestos/edit/123
             const path = window.location.pathname.replace(new URL(flowtax_ajax.home_url).pathname, '').split('/').filter(p => p);
             const view = path[0] || 'dashboard';
             const action = path[1] || 'list';
@@ -244,6 +319,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const formData = new FormData(form);
                 formData.append('action', 'flowtax_save_form');
                 formData.append('nonce', flowtax_ajax.nonce);
+                
+                // Habilitar el select de post_type si está deshabilitado para que se envíe
+                const postTypeSelect = form.querySelector('select[name="post_type"]');
+                if (postTypeSelect && postTypeSelect.disabled) {
+                    postTypeSelect.disabled = false;
+                    formData.set('post_type', postTypeSelect.value);
+                     postTypeSelect.disabled = true;
+                }
 
                 const formObject = {};
                 formData.forEach((value, key) => formObject[key] = value);
@@ -289,9 +372,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const searchTerm = searchInput.value;
                 const postType = searchInput.dataset.postType;
                 const tableBody = document.querySelector('#data-table-body');
-                const originalContent = tableBody.innerHTML;
                 
-                if (searchTerm.length < 3 && searchTerm.length > 0) return;
+                if (searchTerm.length > 0 && searchTerm.length < 3) return;
                 
                 tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>`;
 
@@ -307,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         body: params
                     });
                     const result = await response.json();
+                    Debug.renderBackendLogs(result.data.debug_logs);
                     if (result.success) {
                        this.renderTableRows(result.data);
                     } else {
@@ -314,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 } catch(error) {
                     this.showNotification('Error en la búsqueda.', 'error');
-                    tableBody.innerHTML = originalContent; // Restore on error
+                    this.loadView(currentView); // Recarga la vista actual en caso de error
                 }
             }
         },
@@ -349,32 +432,60 @@ document.addEventListener('DOMContentLoaded', function () {
         
         renderTableRows(data) {
             const tableBody = document.querySelector('#data-table-body');
-            const view = currentView || 'dashboard';
-
             if (!tableBody) return;
+            
+            const view = currentView || 'dashboard';
+            const headers = tableBody.closest('table').querySelectorAll('th');
+            const colCount = headers.length;
 
-            if (data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">No se encontraron resultados.</td></tr>`;
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-4 text-gray-500">No se encontraron resultados.</td></tr>`;
                 return;
             }
 
-            tableBody.innerHTML = data.map(item => `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-3">
-                        <a href="#" data-spa-link data-view="${view}" data-action="edit" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a>
-                        ${view === 'inmigracion' ? `<p class="text-sm text-gray-500">${item.singular_name}</p>`:''}
+            let rowsHtml = '';
+            
+            // Renderizado dinámico basado en la vista actual
+            data.forEach(item => {
+                let row = `<tr class="hover:bg-gray-50">`;
+                switch(view) {
+                    case 'clientes':
+                         row += `<td><a href="#" data-spa-link data-view="clientes" data-action="edit" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a></td>`;
+                         row += `<td>${item.email || ''}</td>`;
+                         row += `<td>${item.telefono || ''}</td>`;
+                         row += `<td>${item.fecha}</td>`;
+                        break;
+                    case 'impuestos':
+                        row += `<td><a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-gray-500">${item.cliente_nombre}</p></td>`;
+                        row += `<td>${item.ano_fiscal || 'N/A'}</td>`;
+                        row += `<td><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
+                        row += `<td>${item.fecha}</td>`;
+                        break;
+                    case 'inmigracion':
+                        row += `<td><a href="#" data-spa-link data-view="inmigracion" data-action="edit" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.singular_name}</a></td>`;
+                        row += `<td>${item.cliente_nombre}</td>`;
+                        row += `<td><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
+                        row += `<td>${item.fecha}</td>`;
+                        break;
+                    case 'traducciones':
+                        row += `<td><a href="#" data-spa-link data-view="traducciones" data-action="edit" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-gray-500">${item.cliente_nombre}</p></td>`;
+                        row += `<td>${item.idioma_origen || ''} → ${item.idioma_destino || ''}</td>`;
+                        row += `<td><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
+                        row += `<td>${item.fecha}</td>`;
+                        break;
+                    // ... otros casos para payroll, transacciones, etc.
+                }
+
+                row += `
+                    <td class="text-right">
+                        <a href="#" data-spa-link data-view="${view}" data-action="edit" data-id="${item.ID}" class="text-gray-500 hover:text-blue-600 mr-3 p-1"><i class="fas fa-edit"></i></a>
+                        <button data-delete-id="${item.ID}" class="text-gray-500 hover:text-red-600 p-1"><i class="fas fa-trash"></i></button>
                     </td>
-                    <td class="p-3">${item.cliente_nombre || item.email || 'N/A'}</td>
-                    <td class="p-3">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span>
-                    </td>
-                    <td class="p-3 text-sm text-gray-600">${item.fecha}</td>
-                    <td class="p-3 text-right">
-                        <a href="#" data-spa-link data-view="${view}" data-action="edit" data-id="${item.ID}" class="text-gray-500 hover:text-blue-600 mr-2"><i class="fas fa-edit"></i></a>
-                        <button data-delete-id="${item.ID}" class="text-gray-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
+                </tr>`;
+                rowsHtml += row;
+            });
+
+            tableBody.innerHTML = rowsHtml;
         }
     };
 
