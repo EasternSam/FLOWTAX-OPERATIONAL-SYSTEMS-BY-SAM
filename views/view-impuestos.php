@@ -25,12 +25,12 @@ if ($action === 'list') {
                     <?php else: foreach ($casos as $caso) : ?>
                     <tr>
                         <td>
-                            <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo $caso['title']; ?></a>
+                            <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($caso['title']); ?></a>
                             <p class="text-sm text-gray-500"><?php echo esc_html($caso['cliente_nombre']); ?></p>
                         </td>
                         <td><?php echo esc_html(get_post_meta($caso['ID'], '_ano_fiscal', true)); ?></td>
-                        <td><span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo $caso['estado_color']; ?>"><?php echo $caso['estado']; ?></span></td>
-                        <td><?php echo $caso['fecha']; ?></td>
+                        <td><span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span></td>
+                        <td><?php echo esc_html($caso['fecha']); ?></td>
                         <td class="text-right">
                             <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="text-gray-500 hover:text-blue-600 mr-2"><i class="fas fa-edit"></i></a>
                             <button data-delete-id="<?php echo $caso['ID']; ?>" class="text-gray-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
@@ -64,13 +64,14 @@ if ($action === 'list') {
             <form data-spa-form>
                 <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
                 <input type="hidden" name="post_type" value="impuestos">
-                
+                <input type="hidden" name="post_title" value="<?php echo $caso ? esc_attr($caso->post_title) : 'Nueva Declaración de Impuestos'; ?>">
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Columna 1 -->
                     <div class="space-y-4">
                         <div>
-                            <label class="form-label">Cliente</label>
-                            <select name="cliente_id" class="form-select" required>
+                            <label class="form-label" for="cliente_id_imp">Cliente</label>
+                            <select name="cliente_id" id="cliente_id_imp" class="form-select" required>
                                 <option value="">Seleccione un cliente</option>
                                 <?php foreach($clientes_options as $cliente): ?>
                                     <option value="<?php echo $cliente['id']; ?>" <?php selected($meta['_cliente_id'][0] ?? '', $cliente['id']); ?>><?php echo esc_html($cliente['title']); ?></option>
@@ -78,8 +79,8 @@ if ($action === 'list') {
                             </select>
                         </div>
                          <div>
-                            <label class="form-label">Año Fiscal</label>
-                            <input type="number" name="ano_fiscal" value="<?php echo esc_attr($meta['_ano_fiscal'][0] ?? date('Y')-1); ?>" class="form-input">
+                            <label class="form-label" for="ano_fiscal_imp">Año Fiscal</label>
+                            <input type="number" name="ano_fiscal" id="ano_fiscal_imp" value="<?php echo esc_attr($meta['_ano_fiscal'][0] ?? date('Y')-1); ?>" class="form-input">
                         </div>
                         <div>
                             <label class="form-label">Tipo de Declaración</label>
@@ -88,12 +89,19 @@ if ($action === 'list') {
                         <div>
                            <label class="form-label">Estado del Caso</label>
                            <select name="estado_caso" class="form-select">
-                               <?php foreach($estados_terms as $term): ?>
-                                    <option value="<?php echo $term->term_id; ?>" <?php if($caso) { $current_terms = wp_get_post_terms($post_id, 'estado_caso', ['fields' => 'ids']); if(!is_wp_error($current_terms) && in_array($term->term_id, $current_terms)) echo 'selected'; } ?>><?php echo esc_html($term->name); ?></option>
+                               <?php 
+                               $current_term_id = 0;
+                               if ($caso) {
+                                   $current_terms = wp_get_post_terms($post_id, 'estado_caso', ['fields' => 'ids']);
+                                   if (!is_wp_error($current_terms) && !empty($current_terms)) {
+                                       $current_term_id = $current_terms[0];
+                                   }
+                               }
+                               foreach($estados_terms as $term): ?>
+                                    <option value="<?php echo $term->term_id; ?>" <?php selected($current_term_id, $term->term_id); ?>><?php echo esc_html($term->name); ?></option>
                                <?php endforeach; ?>
                            </select>
                         </div>
-                        <input type="hidden" name="post_title" value="Declaración de Impuestos"> <!-- Título autogenerado o se puede cambiar -->
                     </div>
                     <!-- Columna 2 -->
                      <div class="space-y-4">
@@ -127,5 +135,33 @@ if ($action === 'list') {
             </form>
         </div>
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[data-spa-form]');
+        if (!form) return;
+
+        const clienteSelect = form.querySelector('[name="cliente_id"]');
+        const anoFiscalInput = form.querySelector('[name="ano_fiscal"]');
+        const titleInput = form.querySelector('[name="post_title"]');
+
+        function updateTitle() {
+            if (!clienteSelect || !anoFiscalInput || !titleInput) return;
+            const clienteText = clienteSelect.options[clienteSelect.selectedIndex]?.text || 'Cliente No Seleccionado';
+            const anoFiscal = anoFiscalInput.value || '<?php echo date('Y')-1; ?>';
+            
+            if (clienteSelect.value) {
+                titleInput.value = `Impuestos ${anoFiscal} para ${clienteText}`;
+            } else {
+                titleInput.value = 'Nueva Declaración de Impuestos';
+            }
+        }
+
+        clienteSelect.addEventListener('change', updateTitle);
+        anoFiscalInput.addEventListener('input', updateTitle);
+        
+        // Initial call to set title on edit forms
+        updateTitle();
+    });
+    </script>
 <?php
 }

@@ -84,26 +84,57 @@ if ($action === 'list') {
             </a>
         </header>
 
-        <form data-spa-form class="bg-white p-6 rounded-lg shadow-sm">
+        <form data-spa-form class="bg-white p-8 rounded-lg shadow-sm space-y-8">
             <input type="hidden" name="post_id" value="<?php echo $id; ?>">
             <input type="hidden" name="post_type" value="cliente">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label for="post_title" class="form-label">Nombre Completo</label>
-                    <input type="text" id="post_title" name="post_title" value="<?php echo $post ? esc_attr($post->post_title) : ''; ?>" class="form-input" required>
+            <!-- Sección de Información Personal -->
+            <section>
+                <h2 class="form-section-title">Información Personal y de Contacto</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <label for="post_title" class="form-label">Nombre Completo</label>
+                        <input type="text" id="post_title" name="post_title" value="<?php echo $post ? esc_attr($post->post_title) : ''; ?>" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="email" class="form-label">Correo Electrónico</label>
+                        <input type="email" id="email" name="email" value="<?php echo $get_meta('email'); ?>" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="telefono" class="form-label">Teléfono</label>
+                        <input type="tel" id="telefono" name="telefono" value="<?php echo $get_meta('telefono'); ?>" class="form-input" required>
+                    </div>
+                     <div>
+                        <label for="tax_id" class="form-label">ID de Impuestos (SSN/ITIN)</label>
+                        <input type="text" id="tax_id" name="tax_id" value="<?php echo $get_meta('tax_id'); ?>" class="form-input">
+                    </div>
                 </div>
-                <div>
-                    <label for="email" class="form-label">Correo Electrónico</label>
-                    <input type="email" id="email" name="email" value="<?php echo $get_meta('email'); ?>" class="form-input" required>
-                </div>
-                 <div>
-                    <label for="telefono" class="form-label">Teléfono</label>
-                    <input type="tel" id="telefono" name="telefono" value="<?php echo $get_meta('telefono'); ?>" class="form-input">
-                </div>
-            </div>
+            </section>
 
-            <div class="mt-8 pt-6 border-t">
+            <!-- Sección de Dirección -->
+            <section>
+                <h2 class="form-section-title">Dirección</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div class="md:col-span-2">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <input type="text" id="direccion" name="direccion" value="<?php echo $get_meta('direccion'); ?>" class="form-input">
+                    </div>
+                    <div>
+                        <label for="ciudad" class="form-label">Ciudad</label>
+                        <input type="text" id="ciudad" name="ciudad" value="<?php echo $get_meta('ciudad'); ?>" class="form-input">
+                    </div>
+                    <div>
+                        <label for="estado_provincia" class="form-label">Estado / Provincia</label>
+                        <input type="text" id="estado_provincia" name="estado_provincia" value="<?php echo $get_meta('estado_provincia'); ?>" class="form-input">
+                    </div>
+                    <div>
+                        <label for="codigo_postal" class="form-label">Código Postal</label>
+                        <input type="text" id="codigo_postal" name="codigo_postal" value="<?php echo $get_meta('codigo_postal'); ?>" class="form-input">
+                    </div>
+                </div>
+            </section>
+
+            <div class="mt-8 pt-6 border-t flex justify-end">
                  <button type="submit" class="btn-primary">
                     <i class="fas fa-save mr-2"></i><?php echo $is_edit ? 'Actualizar Cliente' : 'Guardar Cliente'; ?>
                 </button>
@@ -113,4 +144,3 @@ if ($action === 'list') {
 <?php
 }
 ?>
-

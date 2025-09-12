@@ -123,6 +123,11 @@ if ($action === 'list') {
                     </select>
                 </div>
                 
+                <div>
+                    <label for="post_title" class="form-label">Título del Caso (Generado automáticamente)</label>
+                    <input type="text" id="post_title" name="post_title" class="form-input bg-gray-100 cursor-not-allowed" value="<?php echo $post ? esc_attr($post->post_title) : ''; ?>" readonly>
+                </div>
+                
                  <!-- Campos que se muestran condicionalmente -->
                 <div id="form-fields-container" class="space-y-6">
                     <!-- Los campos específicos se inyectarán aquí por JS -->
@@ -156,55 +161,59 @@ if ($action === 'list') {
                     </div>
                 </div>
             </div>
-            
-            <!-- Campo oculto para el título, se genera con JS -->
-            <input type="hidden" name="post_title" id="post_title_hidden">
         </form>
     </div>
     <script>
-        // Pequeño script para manejar la lógica del formulario
-        document.addEventListener('DOMContentLoaded', function() {
-            const postTypeSelect = document.getElementById('post_type');
-            const clienteSelect = document.getElementById('cliente_id');
-            const container = document.getElementById('form-fields-container');
-            const titleInput = document.getElementById('post_title_hidden');
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[data-spa-form]');
+        if (!form) return;
 
-            const fields = {
-                peticion_familiar: `
-                    <div><label class="form-label">Nombre del Beneficiario</label><input type="text" name="beneficiario_nombre" value="<?php echo $get_meta('beneficiario_nombre'); ?>" class="form-input"></div>
-                    <div><label class="form-label">Relación</label><input type="text" name="relacion" value="<?php echo $get_meta('relacion'); ?>" class="form-input"></div>
-                    <div><label class="form-label">Número de Recibo USCIS</label><input type="text" name="uscis_receipt" value="<?php echo $get_meta('uscis_receipt'); ?>" class="form-input"></div>
-                `,
-                ciudadania: `
-                    <div><label class="form-label">A-Number</label><input type="text" name="a_number" value="<?php echo $get_meta('a_number'); ?>" class="form-input"></div>
-                    <div><label class="form-label">Número de Recibo USCIS</label><input type="text" name="uscis_receipt" value="<?php echo $get_meta('uscis_receipt'); ?>" class="form-input"></div>
-                `,
-                renovacion_residencia: `
-                    <div><label class="form-label">A-Number</label><input type="text" name="a_number" value="<?php echo $get_meta('a_number'); ?>" class="form-input"></div>
-                    <div><label class="form-label">Fecha de Expiración</label><input type="date" name="card_expiry" value="<?php echo $get_meta('card_expiry'); ?>" class="form-input"></div>
-                `
-            };
+        const postTypeSelect = document.getElementById('post_type');
+        const clienteSelect = document.getElementById('cliente_id');
+        const container = document.getElementById('form-fields-container');
+        const titleInput = document.getElementById('post_title');
+
+        const fields = {
+            peticion_familiar: `
+                <div><label class="form-label">Nombre del Beneficiario</label><input type="text" name="beneficiario_nombre" value="<?php echo $get_meta('beneficiario_nombre'); ?>" class="form-input"></div>
+                <div><label class="form-label">Relación</label><input type="text" name="relacion" value="<?php echo $get_meta('relacion'); ?>" class="form-input"></div>
+                <div><label class="form-label">Número de Recibo USCIS</label><input type="text" name="uscis_receipt" value="<?php echo $get_meta('uscis_receipt'); ?>" class="form-input"></div>
+            `,
+            ciudadania: `
+                <div><label class="form-label">A-Number</label><input type="text" name="a_number" value="<?php echo $get_meta('a_number'); ?>" class="form-input"></div>
+                <div><label class="form-label">Número de Recibo USCIS</label><input type="text" name="uscis_receipt" value="<?php echo $get_meta('uscis_receipt'); ?>" class="form-input"></div>
+            `,
+            renovacion_residencia: `
+                <div><label class="form-label">A-Number</label><input type="text" name="a_number" value="<?php echo $get_meta('a_number'); ?>" class="form-input"></div>
+                <div><label class="form-label">Fecha de Expiración</label><input type="date" name="card_expiry" value="<?php echo $get_meta('card_expiry'); ?>" class="form-input"></div>
+            `
+        };
+        
+        function updateTitle() {
+            const clienteText = clienteSelect.options[clienteSelect.selectedIndex]?.text;
+            const tipoText = postTypeSelect.options[postTypeSelect.selectedIndex]?.text;
             
-            function updateTitle() {
-                const clienteText = clienteSelect.options[clienteSelect.selectedIndex]?.text || 'Cliente';
-                const tipoText = postTypeSelect.options[postTypeSelect.selectedIndex]?.text || 'Caso';
+            // CORRECCIÓN: Solo generar el título si se ha seleccionado una opción válida (no el placeholder)
+            if (clienteSelect.value && postTypeSelect.value) {
                 titleInput.value = `${tipoText} para ${clienteText}`;
+            } else {
+                // Si falta alguna selección, el título debe estar vacío para que la validación funcione.
+                titleInput.value = '';
             }
+        }
 
-            function renderFields() {
-                const selectedType = postTypeSelect.value;
-                container.innerHTML = fields[selectedType] || '<p class="text-gray-500">Selecciona un tipo de caso para ver los campos específicos.</p>';
-                updateTitle();
-            }
+        function renderFields() {
+            const selectedType = postTypeSelect.value;
+            container.innerHTML = fields[selectedType] || '';
+            updateTitle();
+        }
 
-            postTypeSelect.addEventListener('change', renderFields);
-            clienteSelect.addEventListener('change', updateTitle);
+        postTypeSelect.addEventListener('change', renderFields);
+        clienteSelect.addEventListener('change', updateTitle);
 
-            // Renderizar campos al cargar si es una edición
-            if ('<?php echo $is_edit; ?>') {
-                renderFields();
-            }
-        });
+        // Llamada inicial para establecer el estado correcto al cargar el formulario
+        renderFields();
+    });
     </script>
 <?php
 }
