@@ -1,17 +1,19 @@
 <?php
-global $action, $id;
+// El ID y la acción son pasados desde el AJAX handler
+$action = $action ?? 'list';
+$id = $id ?? 0;
 
 if ($action === 'list') {
     $query = new WP_Query(['post_type' => 'impuestos', 'posts_per_page' => -1]);
     $casos = array_map(['Flowtax_Ajax_Handler', 'format_post_data'], $query->posts);
 ?>
     <div class="p-4 sm:p-6">
-        <header class="flex justify-between items-center mb-6">
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Gestión de Impuestos</h1>
                 <p class="text-slate-500 mt-1 text-sm">Casos de declaraciones de impuestos.</p>
             </div>
-            <a href="#" data-spa-link data-view="impuestos" data-action="create" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md"><i class="fas fa-plus mr-2"></i>Nueva Declaración</a>
+            <a href="#" data-spa-link data-view="impuestos" data-action="create" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md w-full sm:w-auto"><i class="fas fa-plus mr-2"></i>Nueva Declaración</a>
         </header>
         <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
             <div class="mb-4">
@@ -20,28 +22,41 @@ if ($action === 'list') {
                     <input type="text" data-search-input data-post-type="impuestos" placeholder="Buscar por cliente, año fiscal..." class="pl-10 w-full bg-white border border-slate-300 px-4 py-2.5 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 outline-none">
                 </div>
             </div>
-            <table class="w-full text-left text-sm">
-                <thead><tr><th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Caso (Cliente)</th><th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Año Fiscal</th><th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Estado</th><th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Fecha</th><th class="text-right p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Acciones</th></tr></thead>
-                <tbody id="data-table-body">
-                    <?php if (empty($casos)) : ?>
-                        <tr><td colspan="5" class="text-center p-8 text-slate-500 p-3 border-b border-slate-200 text-slate-600">No se encontraron casos de impuestos.</td></tr>
-                    <?php else: foreach ($casos as $caso) : ?>
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="p-3 border-b border-slate-200 text-slate-600">
-                            <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($caso['title']); ?></a>
-                            <p class="text-sm text-slate-500"><?php echo esc_html($caso['cliente_nombre']); ?></p>
-                        </td>
-                        <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html(get_post_meta($caso['ID'], '_ano_fiscal', true)); ?></td>
-                        <td class="p-3 border-b border-slate-200 text-slate-600"><span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span></td>
-                        <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($caso['fecha']); ?></td>
-                        <td class="text-right space-x-2 p-3 border-b border-slate-200 text-slate-600">
-                            <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors inline-flex"><i class="fas fa-edit"></i></a>
-                            <button data-delete-id="<?php echo $caso['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                    <?php endforeach; endif; ?>
-                </tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm responsive-table">
+                    <thead>
+                        <tr>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Caso (Cliente)</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Año Fiscal</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Estado</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Fecha</th>
+                            <th class="text-right p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <?php if (empty($casos)) : ?>
+                            <tr><td colspan="5" class="text-center p-8 text-slate-500">No se encontraron casos de impuestos.</td></tr>
+                        <?php else: foreach ($casos as $caso) : ?>
+                        <tr>
+                            <td data-label="Caso">
+                                <a href="#" data-spa-link data-view="impuestos" data-action="manage" data-id="<?php echo $caso['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($caso['title']); ?></a>
+                                <p class="text-sm text-slate-500"><?php echo esc_html($caso['cliente_nombre']); ?></p>
+                            </td>
+                            <td data-label="Año Fiscal"><?php echo esc_html(get_post_meta($caso['ID'], '_ano_fiscal', true)); ?></td>
+                            <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span></td>
+                            <td data-label="Fecha"><?php echo esc_html($caso['fecha']); ?></td>
+                            <td data-label="Acciones">
+                                <div class="flex justify-end items-center space-x-2">
+                                    <a href="#" data-spa-link data-view="impuestos" data-action="manage" data-id="<?php echo $caso['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Gestionar"><i class="fas fa-tasks"></i></a>
+                                    <a href="#" data-spa-link data-view="impuestos" data-action="edit" data-id="<?php echo $caso['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Editar"><i class="fas fa-edit"></i></a>
+                                    <button data-delete-id="<?php echo $caso['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 <?php
@@ -54,22 +69,15 @@ if ($action === 'list') {
     $estados_terms = get_terms(['taxonomy' => 'estado_caso', 'hide_empty' => false]);
 ?>
     <div class="p-4 sm:p-6">
-        <header class="flex justify-between items-center mb-6">
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
                  <h1 class="text-2xl font-bold text-slate-800"><?php echo $post_id > 0 ? 'Editar Declaración' : 'Nueva Declaración'; ?></h1>
                  <p class="text-slate-500 mt-1 text-sm">Completa los campos para registrar la declaración de impuestos.</p>
             </div>
-            <a href="#" data-spa-link data-view="impuestos" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-slate-200 text-slate-800 hover:bg-slate-300"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
+            <a href="#" data-spa-link data-view="impuestos" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-slate-200 text-slate-800 hover:bg-slate-300 w-full sm:w-auto"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
         </header>
 
         <div class="bg-white rounded-xl shadow-lg shadow-slate-200/50 overflow-hidden border border-slate-200 max-w-4xl mx-auto">
-            <div class="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex items-center">
-                <div class="flex space-x-1.5">
-                    <span class="block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                    <span class="block w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-                    <span class="block w-2.5 h-2.5 rounded-full bg-green-400"></span>
-                </div>
-            </div>
             <div class="p-6 sm:p-8">
                 <form data-spa-form>
                     <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
@@ -97,14 +105,6 @@ if ($action === 'list') {
                                     <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Tipo de Declaración</label>
                                     <input type="text" name="tipo_declaracion" value="<?php echo esc_attr($meta['_tipo_declaracion'][0] ?? ''); ?>" class="w-full" placeholder="Ej: 1040, 1120S...">
                                 </div>
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Reembolso Estimado ($)</label>
-                                    <input type="number" step="0.01" name="reembolso_estimado" value="<?php echo esc_attr($meta['_reembolso_estimado'][0] ?? ''); ?>" class="w-full" placeholder="0.00">
-                                </div>
-                                <div>
-                                   <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Monto Adeudado ($)</label>
-                                   <input type="number" step="0.01" name="monto_adeudado" value="<?php echo esc_attr($meta['_monto_adeudado'][0] ?? ''); ?>" class="w-full" placeholder="0.00">
-                                </div>
                                 <div class="md:col-span-2">
                                    <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Estado del Caso</label>
                                    <select name="estado_caso" class="w-full">
@@ -118,15 +118,10 @@ if ($action === 'list') {
                             </div>
                         </section>
                         <section>
-                             <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Detalles Adicionales</h3>
+                             <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Notas Internas</h3>
                              <div class="grid grid-cols-1 gap-y-5 mt-4">
                                 <div>
-                                    <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Detalles de Ingresos</label>
-                                    <textarea name="ingresos_detalle" class="w-full min-h-[120px] resize-y" rows="4" placeholder="Describa las fuentes de ingreso (W2, 1099, etc.)"><?php echo esc_textarea($meta['_ingresos_detalle'][0] ?? ''); ?></textarea>
-                                </div>
-                                 <div>
-                                    <label class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Detalles de Deducciones</label>
-                                    <textarea name="deducciones_detalle" class="w-full min-h-[120px] resize-y" rows="4" placeholder="Liste las posibles deducciones (gastos médicos, donaciones, etc.)"><?php echo esc_textarea($meta['_deducciones_detalle'][0] ?? ''); ?></textarea>
+                                    <textarea name="notas_preparador" class="w-full min-h-[120px] resize-y" rows="4" placeholder="Añade notas o comentarios sobre este caso..."><?php echo esc_textarea($meta['_notas_preparador'][0] ?? ''); ?></textarea>
                                 </div>
                              </div>
                         </section>
@@ -143,7 +138,6 @@ if ($action === 'list') {
         </div>
     </div>
     <script>
-    // JS Logic to auto-generate title remains the same
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form[data-spa-form]');
         if (!form) return;

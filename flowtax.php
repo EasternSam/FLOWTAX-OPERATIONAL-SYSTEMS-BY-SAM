@@ -3,8 +3,8 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional. Ahora funciona con un shortcode.
- * Version:           6.0.0
- * Author:            Samuel Diaz Pilier (Mejorado por Gemini)
+ * Version:           6.1.0
+ * Author:            Samuel Diaz Pilier
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
@@ -25,8 +25,9 @@ define('FLOWTAX_DEBUG_MODE', true);
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '6.0.0';
+    const VERSION = '6.1.0';
     private static $instance;
+    private static $is_spa_page = false; // Flag para PWA y otras lógicas de página
 
     private function __construct() {
         $this->setup_constants();
@@ -81,6 +82,76 @@ final class Flow_Tax_Multiservices_Advanced {
         
         // Registrar el shortcode que renderizará la SPA
         add_shortcode('flowtax_management_system', array($this, 'render_spa_shortcode'));
+
+        // Hooks para PWA y ocultar la barra de admin
+        add_action('init', array($this, 'handle_manifest_request'));
+        add_action('wp', array($this, 'check_for_shortcode')); // Hook para detectar el shortcode
+        add_action('wp_head', array($this, 'add_pwa_head_tags'));
+        add_filter('show_admin_bar', array($this, 'maybe_hide_admin_bar'));
+    }
+    
+    /**
+     * Revisa si la página actual contiene el shortcode para activar la lógica de SPA.
+     */
+    public function check_for_shortcode() {
+        global $post;
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'flowtax_management_system')) {
+            self::$is_spa_page = true;
+        }
+    }
+
+    /**
+     * Oculta la barra de admin de WordPress si estamos en la página de la SPA.
+     */
+    public function maybe_hide_admin_bar($show) {
+        if (self::$is_spa_page) {
+            return false;
+        }
+        return $show;
+    }
+
+    public function handle_manifest_request() {
+        if (isset($_GET['flowtax_manifest'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'name' => 'FlowTax Management System',
+                'short_name' => 'FlowTax',
+                'start_url' => home_url('/inicio/'),
+                'display' => 'standalone',
+                'background_color' => '#f1f5f9',
+                'theme_color' => '#2563eb',
+                'description' => 'Sistema de Gestión FlowTax.',
+                'icons' => [
+                    [
+                        'src' => 'https://placehold.co/192x192/2563eb/ffffff?text=FT',
+                        'sizes' => '192x192',
+                        'type' => 'image/png',
+                    ],
+                    [
+                        'src' => 'https://placehold.co/512x512/2563eb/ffffff?text=FT',
+                        'sizes' => '512x512',
+                        'type' => 'image/png',
+                    ],
+                ],
+            ]);
+            wp_die();
+        }
+    }
+
+    public function add_pwa_head_tags() {
+        if (!self::$is_spa_page) {
+            return;
+        }
+        ?>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="FlowTax">
+        <meta name="theme-color" content="#2563eb">
+        <link rel="manifest" href="<?php echo esc_url(home_url('/?flowtax_manifest=1')); ?>">
+        <link rel="apple-touch-icon" sizes="180x180" href="https://placehold.co/180x180/2563eb/ffffff?text=FT">
+        <?php
     }
 
     public function add_admin_menu() {
@@ -117,6 +188,8 @@ final class Flow_Tax_Multiservices_Advanced {
     }
 
     public function render_spa_shortcode($atts) {
+        // La detección ahora se hace en el hook 'wp', ya no se necesita la línea `self::$is_spa_page = true;` aquí.
+
         if (!current_user_can('manage_options')) {
             return '<p>Debes iniciar sesión con una cuenta de administrador para usar este sistema. <a href="' . esc_url(wp_login_url(get_permalink())) . '">Iniciar Sesión</a></p>';
         }
@@ -143,13 +216,18 @@ final class Flow_Tax_Multiservices_Advanced {
         ob_start();
         ?>
         <div id="flowtax-container-wrapper">
+             <!-- Overlay para menú móvil -->
+            <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
             <div class="flex h-screen bg-slate-50" style="min-height: 850px; max-width: 100%;">
                 <!-- Sidebar -->
-                <aside id="spa-sidebar" class="w-56 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col transition-all duration-300">
-                    <div class="h-16 flex items-center justify-center border-b border-slate-200">
+                <aside id="spa-sidebar" class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col transition-transform duration-300 fixed lg:static inset-y-0 left-0 z-40 -translate-x-full lg:translate-x-0">
+                    <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200">
                          <h1 class="text-xl font-bold text-blue-600">FlowTax</h1>
+                         <button id="close-mobile-menu" class="lg:hidden text-slate-500 hover:text-slate-800">
+                            <i class="fas fa-times fa-lg"></i>
+                         </button>
                     </div>
-                    <nav class="flex-1 px-3 py-4 space-y-1">
+                    <nav class="flex-1 px-4 py-4 space-y-1">
                         <?php
                         $modules = [
                             ['view' => 'dashboard', 'title' => 'Dashboard', 'icon' => 'fa-solid fa-chart-pie'],
@@ -178,9 +256,12 @@ final class Flow_Tax_Multiservices_Advanced {
 
                 <!-- Main Content -->
                 <div class="flex-1 flex flex-col overflow-hidden">
-                    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-end px-6 flex-shrink-0">
-                         <div class="flex items-center">
-                            <span class="text-slate-600 font-medium mr-3 text-sm">Hola, <?php echo esc_html($current_user->display_name); ?></span>
+                    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
+                        <button id="open-mobile-menu" class="lg:hidden text-slate-600 hover:text-blue-600">
+                            <i class="fas fa-bars fa-lg"></i>
+                        </button>
+                         <div class="flex items-center ml-auto">
+                            <span class="text-slate-600 font-medium mr-3 text-sm hidden sm:inline">Hola, <?php echo esc_html($current_user->display_name); ?></span>
                             <img class="h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
                         </div>
                     </header>
@@ -194,6 +275,21 @@ final class Flow_Tax_Multiservices_Advanced {
                 </div>
             </div>
             <div id="notification-area" class="fixed top-5 right-5 z-[10000] w-80"></div>
+            
+            <!-- Document Viewer Modal -->
+            <div id="doc-viewer-modal" class="fixed inset-0 bg-black/70 z-50 items-center justify-center p-2 sm:p-4 hidden">
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-full max-h-[95vh] flex flex-col">
+                    <header class="flex items-center justify-between p-3 border-b bg-slate-50 rounded-t-lg flex-shrink-0">
+                        <h3 id="viewer-title" class="font-semibold text-slate-800 truncate pr-4 text-sm sm:text-base"></h3>
+                        <button id="close-viewer-btn" class="text-slate-500 hover:text-red-600 transition-colors">
+                            <i class="fas fa-times fa-lg"></i>
+                        </button>
+                    </header>
+                    <div class="flex-1 p-1 bg-slate-200 overflow-y-auto ios-scroll-touch">
+                        <iframe src="about:blank" class="w-full h-full border-0"></iframe>
+                    </div>
+                </div>
+            </div>
         </div>
         <?php
         return ob_get_clean();
@@ -202,5 +298,4 @@ final class Flow_Tax_Multiservices_Advanced {
 
 // Iniciar el plugin
 Flow_Tax_Multiservices_Advanced::get_instance();
-
 

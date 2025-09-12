@@ -10,14 +10,10 @@ class Flowtax_Data_Validator {
 
     public function validate() {
         $post_type = sanitize_key($this->post_data['post_type'] ?? '');
+        $post_id = intval($this->post_data['post_id'] ?? 0);
 
         if (empty($post_type)) {
             $this->errors['post_type'] = 'El tipo de registro es inválido.';
-        }
-
-        // Validación del título general
-        if (empty($this->post_data['post_title'])) {
-            $this->errors['post_title'] = 'El título es obligatorio.';
         }
 
         // Validaciones específicas por tipo de post
@@ -40,14 +36,30 @@ class Flowtax_Data_Validator {
                 }
                 if (empty($this->post_data['ano_fiscal'])) {
                     $this->errors['ano_fiscal'] = 'El año fiscal es obligatorio.';
-                } elseif (!is_numeric($this->post_data['ano_fiscal']) || intval($this->post_data['ano_fiscal']) < 1980 || intval($this->post_data['ano_fiscal']) > (int)date('Y')) {
+                } elseif (!is_numeric($this->post_data['ano_fiscal']) || intval($this->post_data['ano_fiscal']) < 1980 || intval($this->post_data['ano_fiscal']) > (int)date('Y') + 1) {
                     $this->errors['ano_fiscal'] = 'El año fiscal parece incorrecto.';
                 }
-                if (strpos($this->post_data['post_title'], 'Cliente No Seleccionado') !== false || strpos($this->post_data['post_title'], 'Nueva Declaración') !== false) {
+                if (strpos($this->post_data['post_title'], 'Cliente No Seleccionado') !== false || ($post_id === 0 && strpos($this->post_data['post_title'], 'Nueva Declaración') !== false)) {
                     $this->errors['cliente_id'] = 'El título no se generó correctamente. Asegúrate de seleccionar un cliente.';
                 }
                 break;
             
+            case 'peticion_familiar':
+            case 'ciudadania':
+            case 'renovacion_residencia':
+                if (empty($this->post_data['cliente_id'])) {
+                    $this->errors['cliente_id'] = 'Debes seleccionar un cliente.';
+                }
+                if ($post_id === 0 && empty($this->post_data['post_type'])) {
+                    $this->errors['post_type'] = 'Debes seleccionar un tipo de caso.';
+                }
+                
+                // Solo revisa el título si los campos requeridos para generarlo están presentes.
+                if (!isset($this->errors['cliente_id']) && !isset($this->errors['post_type']) && empty($this->post_data['post_title'])) {
+                     $this->errors['cliente_id'] = 'Error: El título no se generó automáticamente. Refresca la página e inténtalo de nuevo.';
+                }
+                break;
+
             case 'traduccion':
                 if (empty($this->post_data['cliente_id'])) {
                     $this->errors['cliente_id'] = 'Debes seleccionar un cliente.';
@@ -57,6 +69,15 @@ class Flowtax_Data_Validator {
                 }
                 if (empty($this->post_data['idioma_destino'])) {
                     $this->errors['idioma_destino'] = 'El idioma de destino es obligatorio.';
+                }
+                if (empty($this->post_data['post_title']) || strpos($this->post_data['post_title'], 'Cliente No Seleccionado') !== false || ($post_id === 0 && strpos($this->post_data['post_title'], 'Nuevo Proyecto') !== false)) {
+                    $this->errors['cliente_id'] = 'El título no se generó. Asegúrate de seleccionar un cliente.';
+                }
+                break;
+            
+            default:
+                if (empty($this->post_data['post_title'])) {
+                    $this->errors['post_title'] = 'El título es obligatorio.';
                 }
                 break;
         }
@@ -69,7 +90,7 @@ class Flowtax_Data_Validator {
             if (is_array($value)) {
                 $this->sanitized_data[$key] = filter_var_array($value, FILTER_SANITIZE_STRING);
             } else {
-                 if (strpos($key, 'detalle') !== false) {
+                 if (strpos($key, 'detalle') !== false || strpos($key, 'notas') !== false) {
                     $this->sanitized_data[$key] = sanitize_textarea_field($value);
                 } elseif (strpos($key, 'email') !== false) {
                      $this->sanitized_data[$key] = sanitize_email($value);

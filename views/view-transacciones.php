@@ -1,5 +1,5 @@
 <?php
-global $action, $id;
+// La acción ($action) y el ID ($id) son pasados desde class-flowtax-ajax-handler.php
 
 if ($action === 'list') {
 ?>

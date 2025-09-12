@@ -1,6 +1,6 @@
 <?php
-// Esta clase ahora solo contiene la l¨®gica de guardado centralizada.
-// El renderizado de los formularios se mover¨¢ a los archivos de vista (plantillas).
+// Esta clase ahora solo contiene la lÂ¨Â®gica de guardado centralizada.
+// El renderizado de los formularios se moverÂ¨Â¢ a los archivos de vista (plantillas).
 class Flowtax_Meta_Boxes {
 
     public static function init() {
@@ -13,10 +13,10 @@ class Flowtax_Meta_Boxes {
             'empleado' => ['cliente_id', 'salario', 'frecuencia_pago'],
             'nomina' => ['cliente_id', 'fecha_pago', 'monto_total'],
             'impuestos' => ['cliente_id', 'ano_fiscal', 'tipo_declaracion', 'ingresos_detalle', 'deducciones_detalle', 'reembolso_estimado', 'monto_adeudado', 'notas_preparador'],
-            'peticion_familiar' => ['cliente_id', 'beneficiario_nombre', 'relacion', 'beneficiario_dob', 'uscis_receipt', 'priority_date', 'service_center', 'fecha_envio', 'fecha_biometricos', 'fecha_entrevista', 'fecha_aprobacion'],
-            'ciudadania' => ['cliente_id', 'a_number', 'uscis_receipt', 'service_center', 'fecha_envio', 'fecha_biometricos', 'fecha_entrevista', 'fecha_juramentacion'],
-            'renovacion_residencia' => ['cliente_id', 'a_number', 'card_expiry', 'uscis_receipt', 'fecha_envio', 'fecha_biometricos', 'fecha_tarjeta_enviada'],
-            'traduccion' => ['cliente_id', 'idioma_origen', 'idioma_destino', 'num_paginas', 'costo_total', 'fecha_entrega', 'estado_pago'],
+            'peticion_familiar' => ['cliente_id', 'beneficiario_nombre', 'relacion', 'beneficiario_dob', 'uscis_receipt', 'priority_date', 'service_center', 'fecha_envio', 'fecha_biometricos', 'fecha_entrevista', 'fecha_aprobacion', 'notas_caso'],
+            'ciudadania' => ['cliente_id', 'a_number', 'uscis_receipt', 'service_center', 'fecha_envio', 'fecha_biometricos', 'fecha_entrevista', 'fecha_juramentacion', 'notas_caso'],
+            'renovacion_residencia' => ['cliente_id', 'a_number', 'card_expiry', 'uscis_receipt', 'fecha_envio', 'fecha_biometricos', 'fecha_tarjeta_enviada', 'notas_caso'],
+            'traduccion' => ['cliente_id', 'idioma_origen', 'idioma_destino', 'num_paginas', 'costo_total', 'fecha_entrega', 'estado_pago', 'notas_proyecto'],
             'transaccion' => ['tipo_transaccion', 'nombre_entidad', 'monto_transaccion', 'comision', 'fecha_transaccion']
         ];
         

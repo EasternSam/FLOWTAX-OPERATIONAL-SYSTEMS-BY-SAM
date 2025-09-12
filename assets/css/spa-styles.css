@@ -4,15 +4,48 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-/* NOTA: Todas las clases de componentes que usaban @apply han sido eliminadas.
-  Los estilos ahora se aplican directamente en los archivos de vista (PHP)
-  usando las clases de utilidad de Tailwind CSS para asegurar la compatibilidad
-  con la configuración de CDN.
-*/
-
-/* Estilo para el enlace activo en la barra lateral */
 #spa-sidebar .sidebar-link.active {
     background-color: #f1f5f9; /* bg-slate-100 */
     color: #2563eb; /* text-blue-600 */
     font-weight: 600;
 }
+
+/* Estilos para Tablas Responsivas */
+@media screen and (max-width: 768px) {
+    .responsive-table thead {
+        display: none;
+    }
+    .responsive-table tr {
+        display: block;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e2e8f0; /* border-slate-200 */
+        border-radius: 0.5rem; /* rounded-lg */
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-md */
+        overflow: hidden;
+    }
+    .responsive-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        padding: 0.75rem 1rem; /* p-3 px-4 */
+        border-bottom: 1px solid #f1f5f9; /* border-slate-100 */
+    }
+    .responsive-table td:last-child {
+        border-bottom: 0;
+    }
+    .responsive-table td::before {
+        content: attr(data-label);
+        font-weight: 600; /* font-semibold */
+        color: #475569; /* text-slate-600 */
+        text-align: left;
+        margin-right: 1rem;
+    }
+    .responsive-table td:last-child {
+        justify-content: flex-end;
+    }
+    .responsive-table td[data-label="Acciones"]::before {
+        display: none;
+    }
+}
+

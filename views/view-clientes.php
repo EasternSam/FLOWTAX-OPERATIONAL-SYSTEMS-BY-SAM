@@ -10,12 +10,12 @@ if ($action === 'list') {
     $all_posts = array_map('Flowtax_Ajax_Handler::format_post_data', $query->posts);
 ?>
     <div class="p-4 sm:p-6">
-        <header class="flex justify-between items-center mb-6">
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Clientes</h1>
                 <p class="text-slate-500 mt-1 text-sm">Gestiona la información de tus clientes.</p>
             </div>
-            <a href="#" data-spa-link data-view="clientes" data-action="create" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">
+            <a href="#" data-spa-link data-view="clientes" data-action="create" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md w-full sm:w-auto">
                 <i class="fas fa-plus mr-2"></i>Añadir Cliente
             </a>
         </header>
@@ -28,7 +28,7 @@ if ($action === 'list') {
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
+                <table class="w-full text-left text-sm responsive-table">
                     <thead>
                         <tr>
                             <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Nombre</th>
@@ -41,20 +41,22 @@ if ($action === 'list') {
                     <tbody id="data-table-body">
                         <?php if (!empty($all_posts)): ?>
                             <?php foreach ($all_posts as $item): ?>
-                                <tr class="hover:bg-slate-50/50">
-                                    <td class="p-3 border-b border-slate-200 text-slate-600"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($item['title']); ?></a></td>
-                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['email']); ?></td>
-                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['telefono']); ?></td>
-                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['fecha']); ?></td>
-                                    <td class="text-right space-x-2 p-3 border-b border-slate-200 text-slate-600">
-                                        <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors inline-flex" title="Ver Perfil"><i class="fas fa-eye"></i></a>
-                                        <a href="#" data-spa-link data-view="clientes" data-action="edit" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors inline-flex" title="Editar"><i class="fas fa-edit"></i></a>
-                                        <button data-delete-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                <tr>
+                                    <td data-label="Nombre"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($item['title']); ?></a></td>
+                                    <td data-label="Email"><?php echo esc_html($item['email']); ?></td>
+                                    <td data-label="Teléfono"><?php echo esc_html($item['telefono']); ?></td>
+                                    <td data-label="Fecha Reg."><?php echo esc_html($item['fecha']); ?></td>
+                                    <td data-label="Acciones">
+                                        <div class="flex justify-end items-center space-x-2">
+                                            <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Ver Perfil"><i class="fas fa-eye"></i></a>
+                                            <a href="#" data-spa-link data-view="clientes" data-action="edit" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Editar"><i class="fas fa-edit"></i></a>
+                                            <button data-delete-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" class="text-center py-8 text-slate-500 p-3 border-b border-slate-200 text-slate-600">No se encontraron clientes.</td></tr>
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500">No se encontraron clientes.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -71,12 +73,12 @@ if ($action === 'list') {
     $get_meta = fn($key) => isset($meta["_{$key}"]) ? esc_attr($meta["_{$key}"][0]) : '';
 ?>
     <div class="p-4 sm:p-6">
-        <header class="flex justify-between items-center mb-6">
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
              <div>
                 <h1 class="text-2xl font-bold text-slate-800"><?php echo $is_edit ? 'Editar Cliente' : 'Añadir Nuevo Cliente'; ?></h1>
                 <p class="text-slate-500 mt-1 text-sm"><?php echo $is_edit ? 'Actualiza los detalles del cliente.' : 'Completa el formulario para añadir un nuevo cliente.'; ?></p>
             </div>
-             <a href="#" data-spa-link data-view="clientes" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-slate-200 text-slate-800 hover:bg-slate-300"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
+             <a href="#" data-spa-link data-view="clientes" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-slate-200 text-slate-800 hover:bg-slate-300 w-full sm:w-auto"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
         </header>
 
         <div class="bg-white rounded-xl shadow-lg shadow-slate-200/50 overflow-hidden border border-slate-200 max-w-4xl mx-auto">
