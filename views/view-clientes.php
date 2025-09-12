@@ -15,46 +15,46 @@ if ($action === 'list') {
                 <h1 class="text-2xl font-bold text-slate-800">Clientes</h1>
                 <p class="text-slate-500 mt-1 text-sm">Gestiona la información de tus clientes.</p>
             </div>
-            <a href="#" data-spa-link data-view="clientes" data-action="create" class="btn btn-primary">
+            <a href="#" data-spa-link data-view="clientes" data-action="create" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">
                 <i class="fas fa-plus mr-2"></i>Añadir Cliente
             </a>
         </header>
 
-        <div class="card">
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
             <div class="mb-4">
-                <div class="input-wrapper">
-                    <i class="fas fa-search icon"></i>
-                    <input type="text" data-search-input data-post-type="cliente" placeholder="Buscar por nombre, email..." class="form-input form-input-with-icon">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                    <input type="text" data-search-input data-post-type="cliente" placeholder="Buscar por nombre, email..." class="pl-10 w-full bg-white border border-slate-300 px-4 py-2.5 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 outline-none">
                 </div>
             </div>
             <div class="overflow-x-auto">
-                <table class="data-table">
+                <table class="w-full text-left text-sm">
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>Email</th>
-                            <th>Teléfono</th>
-                            <th>Fecha de Registro</th>
-                            <th class="text-right">Acciones</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Nombre</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Email</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Teléfono</th>
+                            <th class="p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Fecha de Registro</th>
+                            <th class="text-right p-3 bg-slate-50 font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="data-table-body">
                         <?php if (!empty($all_posts)): ?>
                             <?php foreach ($all_posts as $item): ?>
-                                <tr>
-                                    <td><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($item['title']); ?></a></td>
-                                    <td><?php echo esc_html($item['email']); ?></td>
-                                    <td><?php echo esc_html($item['telefono']); ?></td>
-                                    <td><?php echo esc_html($item['fecha']); ?></td>
-                                    <td class="text-right space-x-2">
-                                        <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="btn-icon" title="Ver Perfil"><i class="fas fa-eye"></i></a>
-                                        <a href="#" data-spa-link data-view="clientes" data-action="edit" data-id="<?php echo $item['ID']; ?>" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a>
-                                        <button data-delete-id="<?php echo $item['ID']; ?>" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                <tr class="hover:bg-slate-50/50">
+                                    <td class="p-3 border-b border-slate-200 text-slate-600"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="font-semibold text-blue-600 hover:underline"><?php echo esc_html($item['title']); ?></a></td>
+                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['email']); ?></td>
+                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['telefono']); ?></td>
+                                    <td class="p-3 border-b border-slate-200 text-slate-600"><?php echo esc_html($item['fecha']); ?></td>
+                                    <td class="text-right space-x-2 p-3 border-b border-slate-200 text-slate-600">
+                                        <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors inline-flex" title="Ver Perfil"><i class="fas fa-eye"></i></a>
+                                        <a href="#" data-spa-link data-view="clientes" data-action="edit" data-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors inline-flex" title="Editar"><i class="fas fa-edit"></i></a>
+                                        <button data-delete-id="<?php echo $item['ID']; ?>" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar"><i class="fas fa-trash"></i></button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" class="text-center py-8 text-slate-500">No se encontraron clientes.</td></tr>
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500 p-3 border-b border-slate-200 text-slate-600">No se encontraron clientes.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -76,72 +76,72 @@ if ($action === 'list') {
                 <h1 class="text-2xl font-bold text-slate-800"><?php echo $is_edit ? 'Editar Cliente' : 'Añadir Nuevo Cliente'; ?></h1>
                 <p class="text-slate-500 mt-1 text-sm"><?php echo $is_edit ? 'Actualiza los detalles del cliente.' : 'Completa el formulario para añadir un nuevo cliente.'; ?></p>
             </div>
-             <a href="#" data-spa-link data-view="clientes" class="btn btn-secondary"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
+             <a href="#" data-spa-link data-view="clientes" class="font-bold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-slate-200 text-slate-800 hover:bg-slate-300"><i class="fas fa-arrow-left mr-2"></i>Volver</a>
         </header>
 
-        <div class="form-card max-w-4xl mx-auto">
-             <div class="form-card-header">
-                <div class="form-card-dots">
-                    <span class="bg-red-400"></span>
-                    <span class="bg-yellow-400"></span>
-                    <span class="bg-green-400"></span>
+        <div class="bg-white rounded-xl shadow-lg shadow-slate-200/50 overflow-hidden border border-slate-200 max-w-4xl mx-auto">
+             <div class="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex items-center">
+                <div class="flex space-x-1.5">
+                    <span class="block w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                    <span class="block w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                    <span class="block w-2.5 h-2.5 rounded-full bg-green-400"></span>
                 </div>
             </div>
-            <div class="form-card-body">
+            <div class="p-6 sm:p-8">
                 <form data-spa-form>
                     <input type="hidden" name="post_id" value="<?php echo $id; ?>">
                     <input type="hidden" name="post_type" value="cliente">
                     
-                    <div class="space-y-6">
+                    <div class="space-y-8">
                         <section>
                             <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Información Personal</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                                <div class="form-group">
-                                    <label for="post_title" class="form-label">Nombre Completo*</label>
-                                    <input type="text" id="post_title" name="post_title" value="<?php echo $post ? esc_attr($post->post_title) : ''; ?>" class="form-input" placeholder="Escriba el nombre completo" required>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mt-4">
+                                <div>
+                                    <label for="post_title" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Nombre Completo*</label>
+                                    <input type="text" id="post_title" name="post_title" value="<?php echo $post ? esc_attr($post->post_title) : ''; ?>" class="w-full" placeholder="Escriba el nombre completo" required>
                                 </div>
-                                <div class="form-group">
-                                    <label for="email" class="form-label">Correo Electrónico*</label>
-                                    <input type="email" id="email" name="email" value="<?php echo $get_meta('email'); ?>" class="form-input" placeholder="ejemplo@correo.com" required>
+                                <div>
+                                    <label for="email" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Correo Electrónico*</label>
+                                    <input type="email" id="email" name="email" value="<?php echo $get_meta('email'); ?>" class="w-full" placeholder="ejemplo@correo.com" required>
                                 </div>
-                                <div class="form-group">
-                                    <label for="telefono" class="form-label">Teléfono*</label>
-                                    <input type="tel" id="telefono" name="telefono" value="<?php echo $get_meta('telefono'); ?>" class="form-input" placeholder="(809) 555-1234" required>
+                                <div>
+                                    <label for="telefono" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Teléfono*</label>
+                                    <input type="tel" id="telefono" name="telefono" value="<?php echo $get_meta('telefono'); ?>" class="w-full" placeholder="(809) 555-1234" required>
                                 </div>
-                                <div class="form-group">
-                                    <label for="tax_id" class="form-label">ID de Impuestos (SSN/ITIN)</label>
-                                    <input type="text" id="tax_id" name="tax_id" value="<?php echo $get_meta('tax_id'); ?>" class="form-input" placeholder="000-00-0000">
+                                <div>
+                                    <label for="tax_id" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">ID de Impuestos (SSN/ITIN)</label>
+                                    <input type="text" id="tax_id" name="tax_id" value="<?php echo $get_meta('tax_id'); ?>" class="w-full" placeholder="000-00-0000">
                                 </div>
                             </div>
                         </section>
 
                         <section>
                             <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Dirección</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                                <div class="md:col-span-2 form-group">
-                                    <label for="direccion" class="form-label">Dirección</label>
-                                    <input type="text" id="direccion" name="direccion" value="<?php echo $get_meta('direccion'); ?>" class="form-input" placeholder="Calle, número, sector">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mt-4">
+                                <div class="md:col-span-2">
+                                    <label for="direccion" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Dirección</label>
+                                    <input type="text" id="direccion" name="direccion" value="<?php echo $get_meta('direccion'); ?>" class="w-full" placeholder="Calle, número, sector">
                                 </div>
-                                <div class="form-group">
-                                    <label for="ciudad" class="form-label">Ciudad</label>
-                                    <input type="text" id="ciudad" name="ciudad" value="<?php echo $get_meta('ciudad'); ?>" class="form-input" placeholder="Santo Domingo">
+                                <div>
+                                    <label for="ciudad" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Ciudad</label>
+                                    <input type="text" id="ciudad" name="ciudad" value="<?php echo $get_meta('ciudad'); ?>" class="w-full" placeholder="Santo Domingo">
                                 </div>
-                                <div class="form-group">
-                                    <label for="estado_provincia" class="form-label">Estado / Provincia</label>
-                                    <input type="text" id="estado_provincia" name="estado_provincia" value="<?php echo $get_meta('estado_provincia'); ?>" class="form-input" placeholder="Distrito Nacional">
+                                <div>
+                                    <label for="estado_provincia" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Estado / Provincia</label>
+                                    <input type="text" id="estado_provincia" name="estado_provincia" value="<?php echo $get_meta('estado_provincia'); ?>" class="w-full" placeholder="Distrito Nacional">
                                 </div>
-                                <div class="form-group">
-                                    <label for="codigo_postal" class="form-label">Código Postal</label>
-                                    <input type="text" id="codigo_postal" name="codigo_postal" value="<?php echo $get_meta('codigo_postal'); ?>" class="form-input" placeholder="10101">
+                                <div>
+                                    <label for="codigo_postal" class="text-xs font-semibold text-slate-600 mb-1.5 block tracking-wide uppercase">Código Postal</label>
+                                    <input type="text" id="codigo_postal" name="codigo_postal" value="<?php echo $get_meta('codigo_postal'); ?>" class="w-full" placeholder="10101">
                                 </div>
                             </div>
                         </section>
                     </div>
 
                     <div class="mt-8">
-                        <button type="submit" class="btn-submit">
+                        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center text-sm">
                            <span><?php echo $is_edit ? 'Actualizar Cliente' : 'Guardar Cliente'; ?></span>
-                           <i class="fas fa-arrow-right"></i>
+                           <i class="fas fa-arrow-right ml-2 transition-transform duration-300 group-hover:translate-x-1"></i>
                         </button>
                     </div>
                 </form>
@@ -150,4 +150,5 @@ if ($action === 'list') {
     </div>
 <?php
 }
+?>
 
