@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const notificationArea = document.getElementById('notification-area');
     let currentView = null;
     let searchDebounce = null;
+    let supervisionInterval = null; // Para controlar el refresco automático
 
     const Debug = {
         enabled: window.flowtax_ajax?.debug_mode || false,
@@ -22,7 +23,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const App = {
         init() {
             Debug.log('App inicializada.', 'System');
-            // La inicialización de componentes UI ahora se hace después de cargar cada vista.
             if (containerWrapper) {
                 this.initMobileMenu();
                 this.initNotifications();
@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', function () {
             window.addEventListener('popstate', this.handlePopState.bind(this));
             document.body.addEventListener('click', this.handleGlobalClick.bind(this));
             
-            // Los listeners de appRoot se mantienen aquí porque appRoot es persistente.
             if (appRoot) {
                 appRoot.addEventListener('submit', this.handleFormSubmit.bind(this));
                 appRoot.addEventListener('input', this.handleDebouncedInput.bind(this));
@@ -42,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         initDocViewer() {
             const modal = document.getElementById('doc-viewer-modal');
-            if (!modal || modal.dataset.viewerInitialized) return; // Si no existe o ya está inicializado, no hacer nada.
+            if (!modal || modal.dataset.viewerInitialized) return;
             modal.dataset.viewerInitialized = 'true';
 
             const closeBtn = document.getElementById('close-viewer-btn');
@@ -111,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         },
 
-
         initMobileMenu() {
             const sidebar = document.getElementById('spa-sidebar');
             if (!sidebar || sidebar.dataset.menuInitialized) return;
@@ -145,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         },
 
+
         initNotifications() {
             const container = document.getElementById('notification-bell-container');
             if (!container) return;
@@ -170,6 +169,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.stopPropagation();
                 toggleDropdown();
             });
+
+            list.addEventListener('click', (e) => {
+                if (e.target.closest('[data-spa-link]')) {
+                    toggleDropdown(false);
+                }
+            });
         
             document.body.addEventListener('click', (e) => {
                 if (!container.contains(e.target)) {
@@ -188,34 +193,24 @@ document.addEventListener('DOMContentLoaded', function () {
         initWatchmanMode() {
             const toggle = document.getElementById('watchman-mode-toggle');
             if (!toggle) return;
-
-            // Set initial state from localized script data
             toggle.checked = window.flowtax_ajax.watchman_mode_status;
-
             toggle.addEventListener('change', this.handleToggleWatchmanMode.bind(this));
         },
 
         async handleToggleWatchmanMode(event) {
             const toggle = event.target;
-            const originalState = !toggle.checked; // The state before the click
+            const originalState = !toggle.checked;
         
             try {
-                const params = new URLSearchParams({
-                    action: 'flowtax_toggle_watchman_mode',
-                    nonce: flowtax_ajax.nonce
-                });
+                const params = new URLSearchParams({ action: 'flowtax_toggle_watchman_mode', nonce: flowtax_ajax.nonce });
                 const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
                 const result = await response.json();
                 
                 if (!result.success) throw new Error(result.data.message || 'Error updating status.');
-
                 this.showNotification(result.data.message, 'success');
-                // The toggle is already in the new state, so no need to change it
-                
             } catch (error) {
                 Debug.log(error, 'Error Watchman Mode');
                 this.showNotification(`Error: ${error.message}`, 'error');
-                // Revert toggle to its original state on failure
                 toggle.checked = originalState;
             }
         },
@@ -233,12 +228,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!result.success) throw new Error('Could not fetch notifications.');
         
                 if (result.data.notifications && result.data.notifications.length > 0) {
-                    list.innerHTML = result.data.notifications.map(n => `
-                        <div class="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                    list.innerHTML = result.data.notifications.map(n => {
+                        const isClickable = n.view_slug && n.related_id && n.action;
+                        const tag = isClickable ? `a` : `div`;
+                        const linkAttrs = isClickable ? `href="#" data-spa-link data-view="${n.view_slug}" data-action="${n.action}" data-id="${n.related_id}"` : '';
+                        
+                        return `
+                        <${tag} ${linkAttrs} class="block p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer">
                             <p class="text-sm text-slate-700">${n.title}</p>
                             <p class="text-xs text-slate-400 mt-1">${n.time_ago} por <strong>${n.author}</strong></p>
-                        </div>
-                    `).join('');
+                        </${tag}>`;
+                    }).join('');
                 } else {
                     list.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No hay notificaciones nuevas.</div>`;
                 }
@@ -250,11 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         async checkForNewNotifications(indicator) {
             try {
-                const params = new URLSearchParams({
-                    action: 'flowtax_get_notifications',
-                    nonce: flowtax_ajax.nonce,
-                    check_only: 'true'
-                });
+                const params = new URLSearchParams({ action: 'flowtax_get_notifications', nonce: flowtax_ajax.nonce, check_only: 'true' });
                 const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
                 const result = await response.json();
         
@@ -263,22 +259,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     indicator.classList.add('hidden');
                 }
-            } catch (error) {
-                // Fail silently
-            }
+            } catch (error) { /* Fail silently */ }
         },
 
         showNotification(message, type = 'success') {
-            const colors = { success: 'bg-green-500', error: 'bg-red-500', warning: 'bg-yellow-500' };
+            const colors = { success: 'bg-green-600', error: 'bg-red-500', warning: 'bg-yellow-500' };
             const icon = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
             const notification = document.createElement('div');
             notification.className = `notification text-white p-3 rounded-lg shadow-lg mb-2 flex items-center text-sm ${colors[type]} transform transition-all duration-300 translate-x-full`;
             notification.innerHTML = `<i class="fas ${icon[type]} mr-3"></i> <span>${message}</span>`;
             
             notificationArea.appendChild(notification);
-            
             setTimeout(() => notification.classList.remove('translate-x-full'), 10);
-            
             setTimeout(() => {
                 notification.classList.add('opacity-0');
                 setTimeout(() => notification.remove(), 500);
@@ -290,6 +282,11 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         async loadView(view, action = 'list', id = 0, pushState = true) {
+            if (supervisionInterval) {
+                clearInterval(supervisionInterval);
+                supervisionInterval = null;
+            }
+
             this.showLoader();
             Debug.log(`Cargando vista: view=${view}, action=${action}, id=${id}`, 'Navigation');
             
@@ -314,16 +311,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (result.success) {
                     appRoot.innerHTML = result.data.html;
-                    
                     this.initDocViewer();
-
                     const newViewContent = appRoot.children[0];
-                    if (newViewContent) {
-                        newViewContent.classList.add('animate-fade-in');
-                    }
+                    if (newViewContent) newViewContent.classList.add('animate-fade-in');
                     
                     if (action === 'perfil') this.loadClientePerfil(id);
                     if (action === 'manage') this.loadCasoManage(id);
+                    if (view === 'supervision') this.initSupervisionView();
+                    
+                    // Si la vista es una lista, cargar los datos de la tabla dinámicamente
+                    if(action === 'list' && document.getElementById('data-table-body')){
+                        this.handleSearch(document.querySelector('input[data-search-input]'));
+                    }
 
                 } else {
                     throw new Error(result.data.message || 'Error desconocido.');
@@ -332,6 +331,51 @@ document.addEventListener('DOMContentLoaded', function () {
                 Debug.log(error, 'Error LoadView');
                 this.showNotification(`Error al cargar la vista: ${error.message}`, 'error');
                 appRoot.innerHTML = `<div class="text-center text-red-500 p-8">Error al cargar contenido.</div>`;
+            }
+        },
+
+        initSupervisionView() {
+            this.updateSupervisionFeed();
+            supervisionInterval = setInterval(() => this.updateSupervisionFeed(), 5000);
+        },
+
+        async updateSupervisionFeed() {
+            const feedContainer = document.getElementById('live-activity-feed');
+            if (!feedContainer) {
+                 if (supervisionInterval) clearInterval(supervisionInterval);
+                 return;
+            }
+
+            try {
+                const params = new URLSearchParams({ action: 'flowtax_get_live_activity', nonce: flowtax_ajax.nonce });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                
+                if (!result.success) return;
+                
+                const logsHtml = result.data.logs.map(log => {
+                    const isClickable = log.view_slug && log.related_id && log.action;
+                    const tag = isClickable ? 'a' : 'div';
+                    const linkAttrs = isClickable ? `href="#" data-spa-link data-view="${log.view_slug}" data-action="${log.action}" data-id="${log.related_id}"` : '';
+                    
+                    return `
+                    <${tag} ${linkAttrs} class="block p-4 hover:bg-slate-50 transition-colors duration-200">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0 pt-1"><i class="fas fa-history text-slate-400"></i></div>
+                            <div class="flex-grow">
+                                <p class="text-sm text-slate-700">${log.title}</p>
+                                <p class="text-xs text-slate-400 mt-1">
+                                    Por <strong>${log.author}</strong>, ${log.time_ago}
+                                </p>
+                            </div>
+                             ${isClickable ? '<div class="flex-shrink-0 pt-1"><i class="fas fa-chevron-right text-slate-300"></i></div>' : ''}
+                        </div>
+                    </${tag}>`;
+                }).join('');
+
+                feedContainer.innerHTML = logsHtml || `<div class="p-8 text-center text-slate-500">No hay actividad reciente.</div>`;
+            } catch(e) {
+                Debug.log(e, 'Error Supervision Feed');
             }
         },
         
@@ -370,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const clienteInfoContainer = document.getElementById('info-cliente');
             if (cliente) {
                 clienteInfoContainer.innerHTML = `
-                    <p><strong class="font-medium text-slate-500 w-24 inline-block">Nombre:</strong> <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${cliente.ID}" class="text-blue-600 hover:underline font-semibold">${cliente.title}</a></p>
+                    <p><strong class="font-medium text-slate-500 w-24 inline-block">Nombre:</strong> <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${cliente.ID}" class="text-green-600 hover:underline font-semibold">${cliente.title}</a></p>
                     <p><strong class="font-medium text-slate-500 w-24 inline-block">Email:</strong> ${cliente.email || 'N/A'}</p>
                     <p><strong class="font-medium text-slate-500 w-24 inline-block">Teléfono:</strong> ${cliente.telefono || 'N/A'}</p>
                 `;
@@ -403,19 +447,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 documents.forEach(doc => {
                     const clone = docTemplate.content.cloneNode(true);
                     clone.querySelector('.document-name').textContent = doc.name;
-
                     const iconEl = clone.querySelector('.document-icon');
                     const iconMap = { 'pdf': 'fa-file-pdf', 'doc': 'fa-file-word', 'docx': 'fa-file-word', 'xls': 'fa-file-excel', 'xlsx': 'fa-file-excel', 'jpg': 'fa-file-image', 'jpeg': 'fa-file-image', 'png': 'fa-file-image' };
                     iconEl.className = `document-icon fas ${iconMap[doc.name.split('.').pop().toLowerCase()] || 'fa-file-alt'} text-slate-500 fa-lg w-8 text-center`;
-
                     const viewBtn = clone.querySelector('.view-doc-btn');
                     viewBtn.dataset.url = doc.url;
                     viewBtn.dataset.name = doc.name;
-
                     clone.querySelector('.download-doc-btn').href = doc.url;
                     clone.querySelector('.delete-doc-btn').dataset.attachmentId = doc.id;
                     clone.querySelector('.delete-doc-btn').dataset.postId = caso.ID;
-                    
                     docFragment.appendChild(clone);
                 });
                 docsContainer.appendChild(docFragment);
@@ -468,50 +508,109 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                  Debug.log(error, 'Error LoadClientePerfil');
                  this.showNotification(error.message, 'error');
+                 const contentArea = document.getElementById('perfil-content-area');
+                 if(contentArea) contentArea.innerHTML = `<div class="p-8 text-center text-red-500">Error al cargar el perfil.</div>`;
             }
         },
 
         renderClientePerfil(data) {
-            const { cliente, casos } = data;
+            const { cliente, casos, historial } = data;
+            
+            // Renderizar Header
             document.getElementById('cliente-nombre-header').textContent = cliente.title;
+            const iniciales = cliente.title.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+            document.getElementById('cliente-iniciales').textContent = iniciales;
+
+            const getMeta = (key) => cliente.meta[`_${key}`]?.[0] || '';
             
-            const getMeta = (key) => cliente.meta[`_${key}`]?.[0] || 'N/A';
-            
-            document.getElementById('info-contacto').innerHTML = `
-                <p><strong class="font-medium text-slate-500 w-24 inline-block">Email:</strong> ${getMeta('email')}</p>
-                <p><strong class="font-medium text-slate-500 w-24 inline-block">Teléfono:</strong> ${getMeta('telefono')}</p>
-                <p><strong class="font-medium text-slate-500 w-24 inline-block">Tax ID:</strong> ${getMeta('tax_id')}</p>
-            `;
-            document.getElementById('info-direccion').innerHTML = `
-                <p>${getMeta('direccion')}</p>
-                <p>${getMeta('ciudad')}, ${getMeta('estado_provincia')} ${getMeta('codigo_postal')}</p>
+            // Renderizar Info de Contacto
+            const infoContactoContainer = document.getElementById('info-contacto');
+            infoContactoContainer.innerHTML = `
+                <li class="flex items-start">
+                    <i class="fas fa-envelope fa-fw w-6 text-slate-400 pt-1"></i>
+                    <div>
+                        <span class="text-xs text-slate-500">Email</span>
+                        <p class="font-medium text-slate-700">${getMeta('email') || 'No especificado'}</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-phone fa-fw w-6 text-slate-400 pt-1"></i>
+                    <div>
+                        <span class="text-xs text-slate-500">Teléfono</span>
+                        <p class="font-medium text-slate-700">${getMeta('telefono') || 'No especificado'}</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-id-card fa-fw w-6 text-slate-400 pt-1"></i>
+                    <div>
+                        <span class="text-xs text-slate-500">Tax ID</span>
+                        <p class="font-medium text-slate-700">${getMeta('tax_id') || 'No especificado'}</p>
+                    </div>
+                </li>
             `;
 
+            // Renderizar Dirección
+            const infoDireccionContainer = document.getElementById('info-direccion');
+            infoDireccionContainer.innerHTML = `
+                <div>
+                    <span class="text-xs text-slate-500">Dirección</span>
+                    <p class="font-medium text-slate-700">${getMeta('direccion') || 'No especificada'}</p>
+                </div>
+                <div class="mt-3">
+                    <span class="text-xs text-slate-500">Ciudad / Estado / Postal</span>
+                    <p class="font-medium text-slate-700">${[getMeta('ciudad'), getMeta('estado_provincia'), getMeta('codigo_postal')].filter(Boolean).join(', ') || 'No especificada'}</p>
+                </div>
+            `;
+
+            // Renderizar Casos Asociados
             const casosContainer = document.getElementById('casos-asociados-lista');
-            const template = document.getElementById('caso-item-template');
+            const casoTemplate = document.getElementById('caso-item-template');
             casosContainer.innerHTML = '';
 
             if (casos.length > 0) {
                 const casoFragment = document.createDocumentFragment();
                 casos.forEach(caso => {
-                    const clone = template.content.cloneNode(true);
+                    const clone = casoTemplate.content.cloneNode(true);
                     const link = clone.querySelector('a');
                     link.dataset.view = caso.view_slug;
                     link.dataset.action = 'manage';
                     link.dataset.id = caso.ID;
-                    
                     clone.querySelector('.font-semibold').textContent = caso.title;
                     clone.querySelector('.text-xs.text-slate-500').textContent = caso.singular_name;
                     clone.querySelector('.text-xs.text-slate-400').textContent = caso.fecha;
                     const statusBadge = clone.querySelector('.status-badge');
                     statusBadge.textContent = caso.estado;
                     statusBadge.className += ` ${caso.estado_color}`;
-                    
                     casoFragment.appendChild(clone);
                 });
                 casosContainer.appendChild(casoFragment);
             } else {
-                casosContainer.innerHTML = '<p class="text-center text-slate-500 py-4">No hay casos asociados a este cliente.</p>';
+                casosContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-folder-open fa-2x mb-3 text-slate-400"></i><p>No hay casos asociados.</p></div>';
+            }
+
+            // Renderizar Historial del Cliente
+            const historialContainer = document.getElementById('historial-cliente-lista');
+            const historialTemplate = document.getElementById('historial-item-template');
+            historialContainer.innerHTML = '';
+             if (historial.length > 0) {
+                const historialFragment = document.createDocumentFragment();
+                const iconMap = { 'creó': 'fa-plus', 'actualizó': 'fa-pencil-alt', 'eliminó': 'fa-trash', 'subió': 'fa-upload', 'añadió': 'fa-comment-dots' };
+
+                historial.forEach(log => {
+                    const clone = historialTemplate.content.cloneNode(true);
+                    const iconClass = Object.keys(iconMap).find(key => log.title.toLowerCase().includes(key)) || 'fa-history';
+                    clone.querySelector('.historial-icon').classList.add(iconMap[iconClass] || 'fa-history');
+                    clone.querySelector('.historial-texto').innerHTML = log.title;
+                    clone.querySelector('.historial-autor').textContent = log.author;
+                    clone.querySelector('.historial-fecha').textContent = log.time_ago;
+                    historialFragment.appendChild(clone);
+                });
+                 const ul = document.createElement('ul');
+                 ul.className = "-mb-8";
+                 ul.appendChild(historialFragment);
+                 historialContainer.appendChild(ul);
+            } else {
+                historialContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-history fa-2x mb-3 text-slate-400"></i><p>No hay historial de actividad.</p></div>';
             }
             
             document.getElementById('perfil-content-area').classList.remove('opacity-0');
@@ -596,12 +695,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const textarea = form.querySelector('textarea');
             const originalButtonText = submitButton.innerHTML;
 
-            // Primero, capturamos los datos mientras los campos están habilitados
             const formData = new FormData(form);
             formData.append('action', 'flowtax_add_note');
             formData.append('nonce', flowtax_ajax.nonce);
 
-            // Luego, deshabilitamos los campos para prevenir envíos duplicados
             submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
             submitButton.disabled = true;
             textarea.disabled = true;
@@ -619,7 +716,6 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                  this.showNotification(error.message, 'error');
             } finally {
-                // Finalmente, reactivamos todo y limpiamos el formulario
                 submitButton.innerHTML = originalButtonText;
                 submitButton.disabled = false;
                 textarea.disabled = false;
@@ -690,6 +786,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const postType = searchInput.dataset.postType;
             const tableBody = document.querySelector('#data-table-body');
             
+            if (!searchInput) return;
+
             if (searchTerm.length > 0 && searchTerm.length < 3) return;
             
             tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>`;
@@ -699,11 +797,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
                 const result = await response.json();
                 Debug.renderBackendLogs(result.data.debug_logs);
-                if (!result.success) throw new Error('No se pudo buscar.');
-                this.renderTableRows(result.data);
+                if (!result.success) throw new Error('La respuesta del servidor indica un fallo.');
+                this.renderTableRows(result.data, searchTerm);
             } catch(error) {
+                Debug.log(error, 'Error HandleSearch');
                 this.showNotification('Error en la búsqueda.', 'error');
-                this.loadView(currentView);
+                const colCount = tableBody.closest('table')?.querySelector('thead tr')?.childElementCount || 5;
+                tableBody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-16">
+                    <div class="text-red-500"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
+                    <h3 class="mt-2 text-lg font-semibold text-gray-800">Error al Cargar</h3>
+                    <p class="mt-1 text-sm text-gray-500">No se pudieron cargar los datos. Intenta de nuevo más tarde.</p>
+                </td></tr>`;
             }
         },
 
@@ -771,60 +875,93 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         
-        renderTableRows(data) {
+        renderTableRows(data, searchTerm = '') {
             const tableBody = document.querySelector('#data-table-body');
             if (!tableBody) return;
+
+            let items = [];
+            if (Array.isArray(data)) {
+                items = data;
+            } else if (typeof data === 'object' && data !== null) {
+                items = Object.values(data).filter(item => typeof item === 'object' && item !== null && item.hasOwnProperty('ID'));
+            }
             
             const colCount = tableBody.closest('table').querySelector('thead tr').childElementCount;
-            if (!data || data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-8 text-slate-500">No se encontraron resultados.</td></tr>`;
+            const isSearching = searchTerm.length > 0;
+
+            if (items.length === 0) {
+                let emptyStateHtml = '';
+                if (isSearching) {
+                    emptyStateHtml = `<tr><td colspan="${colCount}">
+                        <div class="text-center py-16">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <h3 class="mt-2 text-lg font-semibold text-gray-800">Sin resultados</h3>
+                            <p class="mt-1 text-sm text-gray-500">No se encontraron registros que coincidan con tu búsqueda.</p>
+                        </div>
+                    </td></tr>`;
+                } else {
+                     emptyStateHtml = `<tr><td colspan="${colCount}">
+                        <div class="text-center py-16">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                              <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                            </svg>
+                            <h3 class="mt-2 text-lg font-semibold text-gray-800">No hay ${currentView}</h3>
+                            <p class="mt-1 text-sm text-gray-500">Empieza por añadir tu primer registro.</p>
+                            <div class="mt-6">
+                              <a href="#" data-spa-link data-view="${currentView}" data-action="create" class="btn-primary">
+                                <i class="fas fa-plus mr-2"></i>
+                                Añadir
+                              </a>
+                            </div>
+                        </div>
+                    </td></tr>`;
+                }
+                tableBody.innerHTML = emptyStateHtml;
                 return;
             }
 
-            const rowsHtml = data.map(item => {
+            const rowsHtml = items.map(item => {
                 let rowContent = '';
-                switch(currentView) {
+                 switch(currentView) {
                     case 'clientes':
                          rowContent = `
-                            <td data-label="Nombre"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a></td>
+                            <td data-label="Nombre"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a></td>
                             <td data-label="Email">${item.email || ''}</td>
                             <td data-label="Teléfono">${item.telefono || ''}</td>
                             <td data-label="Fecha Reg.">${item.fecha}</td>`;
                         break;
                     case 'impuestos':
                         rowContent = `
-                            <td data-label="Caso"><a href="#" data-spa-link data-view="impuestos" data-action="manage" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
+                            <td data-label="Caso"><a href="#" data-spa-link data-view="impuestos" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
                             <td data-label="Año Fiscal">${item.ano_fiscal || 'N/A'}</td>
                             <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
                             <td data-label="Fecha">${item.fecha}</td>`;
                         break;
                     case 'inmigracion':
                         rowContent = `
-                            <td data-label="Tipo de Caso"><a href="#" data-spa-link data-view="inmigracion" data-action="manage" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.singular_name}</p></td>
+                            <td data-label="Tipo de Caso"><a href="#" data-spa-link data-view="inmigracion" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.singular_name}</p></td>
                             <td data-label="Cliente">${item.cliente_nombre}</td>
                             <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
                             <td data-label="Fecha de Creación">${item.fecha}</td>`;
                         break;
                     case 'traducciones':
                         rowContent = `
-                            <td data-label="Proyecto"><a href="#" data-spa-link data-view="traducciones" data-action="manage" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
+                            <td data-label="Proyecto"><a href="#" data-spa-link data-view="traducciones" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
                             <td data-label="Idiomas">${item.idioma_origen || ''} → ${item.idioma_destino || ''}</td>
                             <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
                             <td data-label="Fecha">${item.fecha}</td>`;
                         break;
-                    case 'actividad':
-                         rowContent = `
-                            <td data-label="Acción">${item.title}</td>
-                            <td data-label="Usuario">${item.author}</td>
-                            <td data-label="Fecha">${item.time_ago}</td>`;
-                        break;
                 }
-                return `<tr>${rowContent}
+                
+                let viewAction = (currentView === 'clientes') ? 'perfil' : 'manage';
+                let viewIcon = (currentView === 'clientes') ? 'fa-eye' : 'fa-tasks';
+
+                return `<tr class="hover:bg-slate-50">${rowContent}
                     <td data-label="Acciones">
-                        <div class="flex justify-end items-center space-x-2">
-                            <a href="#" data-spa-link data-view="${currentView}" data-action="manage" data-id="${item.ID}" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Gestionar"><i class="fas fa-tasks"></i></a>
-                            <a href="#" data-spa-link data-view="${currentView}" data-action="edit" data-id="${item.ID}" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 hover:text-blue-600 flex items-center justify-center transition-colors" title="Editar"><i class="fas fa-edit"></i></a>
-                            <button data-delete-id="${item.ID}" class="h-8 w-8 rounded-md text-slate-500 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        <div class="flex justify-end items-center space-x-1">
+                            <a href="#" data-spa-link data-view="${currentView}" data-action="${viewAction}" data-id="${item.ID}" class="btn-icon" title="Gestionar"><i class="fas ${viewIcon}"></i></a>
+                            <a href="#" data-spa-link data-view="${currentView}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a>
+                            <button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
                         </div>
                     </td>
                 </tr>`;
@@ -835,4 +972,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     App.init();
 });
+
+
 

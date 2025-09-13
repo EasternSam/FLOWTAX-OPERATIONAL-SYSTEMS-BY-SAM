@@ -24,7 +24,7 @@ $pending_cases = [];
 if ($pending_term) {
     $pending_query = new WP_Query([
         'post_type' => ['impuestos', 'peticion_familiar', 'ciudadania', 'renovacion_residencia', 'traduccion'],
-        'posts_per_page' => 3,
+        'posts_per_page' => 5,
         'tax_query' => [
             [
                 'taxonomy' => 'estado_caso',
@@ -47,16 +47,16 @@ $current_hour = (int) current_time('H');
 $saludo = 'Buen día';
 if ($current_hour >= 12 && $current_hour < 19) {
     $saludo = 'Buenas tardes';
-} elseif ($current_hour >= 19 || $current_hour < 5) { // Considerar noche desde las 7pm hasta las 5am
+} elseif ($current_hour >= 19 || $current_hour < 5) {
     $saludo = 'Buenas noches';
 }
 
 ?>
-<div class="p-4 sm:p-6">
+<div class="p-4 sm:p-6 lg:p-8">
     <!-- Header -->
     <header class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-800"><?php echo esc_html($saludo); ?>, <?php echo esc_html($current_user->display_name); ?>!</h1>
-        <p class="text-slate-500 mt-1 text-sm">Hoy es <?php echo ucfirst($today_date); ?>. Aquí tienes tu resumen diario.</p>
+        <h1 class="text-3xl font-bold text-slate-800"><?php echo esc_html($saludo); ?>, <?php echo esc_html($current_user->display_name); ?>!</h1>
+        <p class="text-slate-500 mt-1">Aquí tienes un resumen de la actividad de tu negocio.</p>
     </header>
 
     <!-- KPIs -->
@@ -70,22 +70,24 @@ if ($current_hour >= 12 && $current_hour < 19) {
         ];
         foreach ($kpis as $kpi) {
             $colors = [
-                'blue' => ['border' => 'hover:border-blue-400', 'text' => 'text-blue-600', 'bg' => 'bg-blue-100'],
-                'indigo' => ['border' => 'hover:border-indigo-400', 'text' => 'text-indigo-600', 'bg' => 'bg-indigo-100'],
-                'sky' => ['border' => 'hover:border-sky-400', 'text' => 'text-sky-600', 'bg' => 'bg-sky-100'],
-                'amber' => ['border' => 'hover:border-amber-400', 'text' => 'text-amber-600', 'bg' => 'bg-amber-100'],
+                'blue' => ['text' => 'text-blue-600', 'bg' => 'bg-blue-100'],
+                'indigo' => ['text' => 'text-indigo-600', 'bg' => 'bg-indigo-100'],
+                'sky' => ['text' => 'text-sky-600', 'bg' => 'bg-sky-100'],
+                'amber' => ['text' => 'text-amber-600', 'bg' => 'bg-amber-100'],
             ];
             $color_theme = $colors[$kpi['color']];
             echo <<<HTML
-            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex items-start justify-between {$color_theme['border']} transition-colors duration-300">
-                <div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                <div class="flex items-center justify-between">
+                     <span class="{$color_theme['bg']} {$color_theme['text']} p-3 rounded-lg">
+                        <i class="{$kpi['icon']} fa-lg"></i>
+                    </span>
+                </div>
+                <div class="mt-4">
+                    <p class="text-3xl font-bold text-slate-800">{$kpi['count']}</p>
                     <p class="text-sm font-semibold text-slate-500">{$kpi['title']}</p>
-                    <p class="text-3xl font-bold text-slate-800 mt-1">{$kpi['count']}</p>
-                    <a href="#" data-spa-link data-view="{$kpi['view']}" class="text-xs font-semibold {$color_theme['text']} hover:underline mt-2 inline-block">Ver todos &rarr;</a>
                 </div>
-                <div class="{$color_theme['bg']} p-3 rounded-lg">
-                    <i class="{$kpi['icon']} fa-lg {$color_theme['text']}"></i>
-                </div>
+                 <a href="#" data-spa-link data-view="{$kpi['view']}" class="text-xs font-semibold text-slate-400 hover:text-green-600 mt-4 inline-block">Ver todos &rarr;</a>
             </div>
 HTML;
         }
@@ -97,7 +99,7 @@ HTML;
         <!-- Actividad Reciente -->
         <div class="lg:col-span-2">
              <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 h-full">
-                <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Actividad Reciente</h2>
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Actividad Reciente</h2>
                 <div class="space-y-1">
                     <?php
                     if ($recent_query->have_posts()) :
@@ -117,71 +119,54 @@ HTML;
                                         ?> text-slate-500"></i>
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="font-semibold text-slate-700 text-sm truncate"><?php echo esc_html($caso['title']); ?></p>
+                                        <p class="font-semibold text-slate-700 text-sm truncate" title="<?php echo esc_attr($caso['title']); ?>"><?php echo esc_html($caso['title']); ?></p>
                                         <p class="text-xs text-slate-500 truncate">
                                             <?php echo esc_html($caso['singular_name']); ?> para <strong><?php echo esc_html($caso['cliente_nombre']); ?></strong>
                                         </p>
                                     </div>
                                 </div>
                                 <div class="text-right flex-shrink-0 ml-4 hidden sm:block">
-                                    <span class="text-xs text-slate-400 font-medium"><?php echo get_the_date('d M Y'); ?></span>
-                                    <span class="block mt-1 px-2 py-0.5 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span>
+                                    <span class="block px-2 py-0.5 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span>
                                 </div>
                             </div>
                         </a>
                     <?php
                         endwhile;
                         wp_reset_postdata();
-                    else :
-                        echo '<p class="text-center text-slate-500 py-8">No hay actividad reciente.</p>';
-                    endif;
-                    ?>
+                    else : ?>
+                        <div class="text-center py-12">
+                             <div class="text-4xl text-slate-300 mb-4"><i class="fas fa-history"></i></div>
+                            <h3 class="text-lg font-semibold text-slate-700">No hay actividad reciente</h3>
+                            <p class="text-slate-500 text-sm mt-1">Las últimas acciones aparecerán aquí.</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
              </div>
         </div>
 
-        <!-- Acciones y Pendientes -->
-        <div class="lg:col-span-1 space-y-6">
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
-                <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Acciones Rápidas</h2>
-                <div class="space-y-2">
-                 <?php
-                $quick_actions = [
-                    ['view' => 'clientes', 'action' => 'create', 'title' => 'Añadir Cliente', 'icon' => 'fa-solid fa-user-plus', 'color' => 'green'],
-                    ['view' => 'impuestos', 'action' => 'create', 'title' => 'Nuevo Caso de Impuestos', 'icon' => 'fa-solid fa-plus', 'color' => 'indigo'],
-                    ['view' => 'inmigracion', 'action' => 'create', 'title' => 'Nuevo Caso Inmigración', 'icon' => 'fa-solid fa-plus', 'color' => 'sky'],
-                    ['view' => 'transacciones', 'action' => 'create', 'title' => 'Registrar Pago', 'icon' => 'fa-solid fa-dollar-sign', 'color' => 'emerald'],
-                ];
-                 foreach ($quick_actions as $action) {
-                     $icon_color = 'text-'.$action['color'].'-500';
-                     echo <<<HTML
-                    <a href="#" data-spa-link data-view="{$action['view']}" data-action="{$action['action']}" class="flex items-center w-full text-left p-3 rounded-lg hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700">
-                        <i class="{$action['icon']} {$icon_color} mr-4 fa-fw"></i>
-                        <span>{$action['title']}</span>
-                        <i class="fa-solid fa-chevron-right text-slate-400 ml-auto text-xs"></i>
-                    </a>
-HTML;
-                 }
-                ?>
-                </div>
-            </div>
-
-            <?php if (!empty($pending_cases)): ?>
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
-                <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Pendiente de Cliente</h2>
+        <!-- Casos Pendientes -->
+        <div class="lg:col-span-1">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 h-full">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Pendiente de Cliente</h2>
                 <div class="space-y-3">
-                <?php foreach($pending_cases as $p_post): 
-                    $p_caso = Flowtax_Ajax_Handler::format_post_data($p_post);
-                ?>
-                    <a href="#" data-spa-link data-view="<?php echo $p_caso['view_slug']; ?>" data-action="manage" data-id="<?php echo $p_caso['ID']; ?>" class="block text-sm p-2 rounded-md hover:bg-slate-50">
-                        <p class="font-semibold text-slate-600 truncate"><?php echo esc_html($p_caso['title']); ?></p>
-                        <p class="text-xs text-slate-400"><?php echo esc_html($p_caso['cliente_nombre']); ?></p>
-                    </a>
-                <?php endforeach; wp_reset_postdata(); ?>
+                <?php if (!empty($pending_cases)):
+                    foreach($pending_cases as $p_post): 
+                        $p_caso = Flowtax_Ajax_Handler::format_post_data($p_post);
+                    ?>
+                        <a href="#" data-spa-link data-view="<?php echo $p_caso['view_slug']; ?>" data-action="manage" data-id="<?php echo $p_caso['ID']; ?>" class="block text-sm p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200">
+                            <p class="font-semibold text-slate-700 truncate"><?php echo esc_html($p_caso['title']); ?></p>
+                            <p class="text-xs text-slate-500 mt-0.5"><?php echo esc_html($p_caso['cliente_nombre']); ?></p>
+                        </a>
+                    <?php endforeach; wp_reset_postdata(); 
+                    else: ?>
+                        <div class="text-center py-12">
+                            <div class="text-4xl text-green-500 mb-4"><i class="fas fa-check-circle"></i></div>
+                            <h3 class="text-lg font-semibold text-slate-700">¡Todo al día!</h3>
+                            <p class="text-slate-500 text-sm mt-1">No hay casos esperando por clientes.</p>
+                        </div>
+                <?php endif; ?>
                 </div>
             </div>
-            <?php endif; ?>
         </div>
     </div>
 </div>
-

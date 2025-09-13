@@ -1,13 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+:root {
+    --color-primary: 22 163 74; /* green-600 */
+    --color-primary-hover: 21 128 61; /* green-700 */
+    --color-primary-light: 220 252 231; /* green-100 */
+    --color-primary-text: 20 83 45; /* green-800 */
+}
+
+
 body {
     font-family: 'Inter', sans-serif;
 }
 
 #spa-sidebar .sidebar-link.active {
-    background-color: #f1f5f9; /* bg-slate-100 */
-    color: #2563eb; /* text-blue-600 */
+    background-color: #f3f4f6; /* bg-gray-100 */
+    color: #111827; /* text-gray-900 */
     font-weight: 600;
+}
+
+#spa-sidebar .sidebar-link.active i {
+    color: rgb(var(--color-primary));
 }
 
 /* Estilos para Tablas Responsivas */
@@ -18,9 +30,9 @@ body {
     .responsive-table tr {
         display: block;
         margin-bottom: 1.5rem;
-        border: 1px solid #e2e8f0; /* border-slate-200 */
+        border: 1px solid #e5e7eb; /* border-gray-200 */
         border-radius: 0.5rem; /* rounded-lg */
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-md */
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
         overflow: hidden;
     }
     .responsive-table td {
@@ -29,7 +41,7 @@ body {
         align-items: center;
         text-align: right;
         padding: 0.75rem 1rem; /* p-3 px-4 */
-        border-bottom: 1px solid #f1f5f9; /* border-slate-100 */
+        border-bottom: 1px solid #f3f4f6; /* border-gray-100 */
     }
     .responsive-table td:last-child {
         border-bottom: 0;
@@ -37,7 +49,7 @@ body {
     .responsive-table td::before {
         content: attr(data-label);
         font-weight: 600; /* font-semibold */
-        color: #475569; /* text-slate-600 */
+        color: #4b5563; /* text-gray-600 */
         text-align: left;
         margin-right: 1rem;
     }
@@ -80,7 +92,5 @@ input:checked ~ .dot {
   background-color: #ffffff;
 }
 input:checked ~ .block {
-  background-color: #2563eb; /* bg-blue-600 */
+  background-color: rgb(var(--color-primary));
 }
-
-

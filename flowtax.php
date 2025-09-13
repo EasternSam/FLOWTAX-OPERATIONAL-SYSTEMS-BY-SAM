@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional. Ahora funciona con un shortcode.
- * Version:           7.3.0
+ * Version:           7.5.0
  * Author:            Samuel Diaz Pilier
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -16,6 +16,18 @@ if (!defined('WPINC')) {
     die;
 }
 
+/**
+ * =================================================================
+ * CONFIGURACIÓN DE NOTIFICACIONES PUSH (ONESIGNAL)
+ * =================================================================
+ * Para habilitar las notificaciones push, mueva estas líneas a su
+ * archivo wp-config.php y reemplace los valores con sus claves reales
+ * de OneSignal. NO deje las claves en este archivo por seguridad.
+ * * define('FLOWTAX_ONESIGNAL_APP_ID', 'SU_APP_ID_DE_ONESIGNAL');
+ * define('FLOWTAX_ONESIGNAL_API_KEY', 'SU_REST_API_KEY_DE_ONESIGNAL');
+ * =================================================================
+ */
+
 // Control centralizado para activar/desactivar el modo de depuración.
 define('FLOWTAX_DEBUG_MODE', true);
 
@@ -25,7 +37,7 @@ define('FLOWTAX_DEBUG_MODE', true);
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '7.3.0';
+    const VERSION = '7.5.0';
     private static $instance;
     private static $is_spa_page = false; // Flag para PWA y otras lógicas de página
 
@@ -210,7 +222,7 @@ final class Flow_Tax_Multiservices_Advanced {
         wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css');
         
         // --- OneSignal SDK para Notificaciones Push ---
-        wp_enqueue_script('onesignal-sdk', 'https://cdn.onesignal.com/sdks/OneSignalSDK.js', [], null, false);
+        wp_enqueue_script('onesignal-sdk', 'https://cdn.onesignal.com/sdks/OneSignalSDK.js', [], null, true); 
 
 
         // --- Renderizado del HTML de la SPA ---
@@ -219,55 +231,61 @@ final class Flow_Tax_Multiservices_Advanced {
         ob_start();
         ?>
         <script>
-            window.OneSignal = window.OneSignal || [];
-            OneSignal.push(function() {
-                OneSignal.init({
-                    appId: "912f40e0-b0b4-4182-8be7-3fca929d3769",
-                });
+            document.addEventListener('DOMContentLoaded', function() {
+                var oneSignalAppId = "<?php echo defined('FLOWTAX_ONESIGNAL_APP_ID') ? FLOWTAX_ONESIGNAL_APP_ID : ''; ?>";
+                if (!oneSignalAppId) {
+                    console.warn('FlowTax Notificaciones: OneSignal App ID no está configurado.');
+                    return;
+                }
 
-                // Cuando el usuario se suscribe (o ya está suscrito), obtenemos su ID
-                OneSignal.on('subscriptionChange', function(isSubscribed) {
-                    if (isSubscribed) {
-                        OneSignal.getUserId(function(userId) {
-                            console.log("OneSignal User ID:", userId);
-                            
-                            // Enviar el Player ID a WordPress para guardarlo
-                            const params = new URLSearchParams({
-                                action: 'flowtax_save_onesignal_player_id',
-                                nonce: '<?php echo wp_create_nonce('flowtax_ajax_nonce'); ?>',
-                                player_id: userId
-                            });
+                window.OneSignal = window.OneSignal || [];
+                OneSignal.push(function() {
+                    OneSignal.init({
+                        appId: oneSignalAppId,
+                    });
 
-                            fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
-                                method: 'POST',
-                                body: params
-                            })
-                            .then(response => response.json())
-                            .then(result => {
-                                if(result.success) {
-                                    console.log('Player ID guardado en WordPress.');
-                                } else {
-                                    console.error('Error al guardar Player ID:', result.data.message);
-                                }
+                    OneSignal.on('subscriptionChange', function(isSubscribed) {
+                        if (isSubscribed) {
+                            OneSignal.getUserId(function(userId) {
+                                console.log("OneSignal User ID:", userId);
+                                
+                                const params = new URLSearchParams({
+                                    action: 'flowtax_save_onesignal_player_id',
+                                    nonce: '<?php echo wp_create_nonce('flowtax_ajax_nonce'); ?>',
+                                    player_id: userId
+                                });
+
+                                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                                    method: 'POST',
+                                    body: params
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    if(result.success) {
+                                        console.log('Player ID guardado en WordPress.');
+                                    } else {
+                                        console.error('Error al guardar Player ID:', result.data.message);
+                                    }
+                                });
                             });
-                        });
-                    }
+                        }
+                    });
                 });
             });
         </script>
-        <div id="flowtax-container-wrapper">
+        <div id="flowtax-container-wrapper" class="antialiased text-slate-700">
              <!-- Overlay para menú móvil -->
             <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
-            <div class="flex h-screen bg-slate-50" style="min-height: 850px; max-width: 100%;">
+            <div class="flex h-screen bg-slate-100">
                 <!-- Sidebar -->
-                <aside id="spa-sidebar" class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col transition-transform duration-300 fixed lg:static inset-y-0 left-0 z-40 -translate-x-full lg:translate-x-0">
-                    <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200">
-                         <h1 class="text-xl font-bold text-blue-600">FlowTax</h1>
+                <aside id="spa-sidebar" class="w-64 bg-white border-r border-slate-200/80 flex-shrink-0 flex flex-col transition-transform duration-300 fixed lg:static inset-y-0 left-0 z-40 -translate-x-full lg:translate-x-0">
+                    <div class="h-16 flex items-center justify-between px-4 border-b border-slate-200/80">
+                         <h1 class="text-xl font-bold text-slate-800">FlowTax</h1>
                          <button id="close-mobile-menu" class="lg:hidden text-slate-500 hover:text-slate-800">
                             <i class="fas fa-times fa-lg"></i>
                          </button>
                     </div>
-                    <nav class="flex-1 px-4 py-4 space-y-1">
+                    <nav class="flex-1 px-3 py-4 space-y-1.5">
                         <?php
                         $modules = [
                             ['view' => 'dashboard', 'title' => 'Dashboard', 'icon' => 'fa-solid fa-chart-pie'],
@@ -277,22 +295,23 @@ final class Flow_Tax_Multiservices_Advanced {
                             ['view' => 'payroll', 'title' => 'Payroll', 'icon' => 'fa-solid fa-money-check-dollar'],
                             ['view' => 'traducciones', 'title' => 'Traducciones', 'icon' => 'fa-solid fa-language'],
                             ['view' => 'transacciones', 'title' => 'Pagos y Cheques', 'icon' => 'fa-solid fa-cash-register'],
+                            ['view' => 'supervision', 'title' => 'Supervisión', 'icon' => 'fa-solid fa-binoculars'],
                             ['view' => 'actividad', 'title' => 'Registro de Actividad', 'icon' => 'fa-solid fa-history'],
                         ];
                         foreach ($modules as $module) {
-                            echo '<a href="#" data-spa-link data-view="'.$module['view'].'" class="sidebar-link flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-blue-600 rounded-md transition-colors duration-200">
-                                <i class="'.$module['icon'].' fa-fw w-6 text-center mr-3 text-slate-400"></i>
+                            echo '<a href="#" data-spa-link data-view="'.$module['view'].'" class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-all duration-200">
+                                <i class="'.$module['icon'].' fa-fw w-6 text-center mr-2.5 text-slate-400"></i>
                                 <span>'.$module['title'].'</span>
                             </a>';
                         }
                         ?>
                     </nav>
-                     <div class="px-3 py-3 border-t border-slate-200">
+                     <div class="px-3 py-3 border-t border-slate-200/80">
                         <!-- Watchman Mode Toggle -->
                         <div class="mb-2 p-2 rounded-md hover:bg-slate-50">
                              <label for="watchman-mode-toggle" class="flex items-center justify-between cursor-pointer">
                                 <span class="flex items-center text-sm font-medium text-slate-600">
-                                    <i class="fa-solid fa-shield-halved fa-fw w-6 text-center mr-3 text-slate-400"></i>
+                                    <i class="fa-solid fa-shield-halved fa-fw w-6 text-center mr-2.5 text-slate-400"></i>
                                     <span>Modo Vigilante</span>
                                 </span>
                                 <div class="relative">
@@ -302,8 +321,8 @@ final class Flow_Tax_Multiservices_Advanced {
                                 </div>
                             </label>
                         </div>
-                        <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="sidebar-link-logout flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors duration-200">
-                           <i class="fa-solid fa-arrow-right-from-bracket fa-fw w-6 text-center mr-3 text-slate-400"></i>
+                        <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="sidebar-link-logout flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors duration-200">
+                           <i class="fa-solid fa-arrow-right-from-bracket fa-fw w-6 text-center mr-2.5 text-slate-400"></i>
                            <span>Salir del sistema</span>
                         </a>
                     </div>
@@ -311,16 +330,16 @@ final class Flow_Tax_Multiservices_Advanced {
 
                 <!-- Main Content -->
                 <div class="flex-1 flex flex-col overflow-hidden">
-                    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
+                    <header class="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 sticky top-0 z-10">
                         <button id="open-mobile-menu" class="lg:hidden text-slate-600 hover:text-blue-600">
                             <i class="fas fa-bars fa-lg"></i>
                         </button>
                          <div class="flex items-center ml-auto">
                             <!-- Notification Bell -->
                             <div class="relative mr-4" id="notification-bell-container">
-                                <button id="notification-bell-btn" class="text-slate-500 hover:text-blue-600 h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+                                <button id="notification-bell-btn" class="text-slate-500 hover:text-slate-800 h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
                                     <i class="fas fa-bell"></i>
-                                    <span id="notification-indicator" class="absolute top-1 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white hidden"></span>
+                                    <span id="notification-indicator" class="absolute top-1 right-1.5 block h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white hidden"></span>
                                 </button>
                                 <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-slate-200 z-50 hidden">
                                     <div class="p-3 border-b border-slate-100">
@@ -334,11 +353,11 @@ final class Flow_Tax_Multiservices_Advanced {
                                     </div>
                                 </div>
                             </div>
-                            <span class="text-slate-600 font-medium mr-3 text-sm hidden sm:inline">Hola, <?php echo esc_html($current_user->display_name); ?></span>
-                            <img class="h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
+                            <span class="text-slate-600 font-medium mr-3 text-sm hidden sm:inline"><?php echo esc_html($current_user->display_name); ?></span>
+                            <img class="h-9 w-9 rounded-full object-cover ring-2 ring-offset-1 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
                         </div>
                     </header>
-                    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100">
+                    <main class="flex-1 overflow-x-hidden overflow-y-auto">
                          <div id="flowtax-app-root">
                             <div class="flex justify-center items-center h-full">
                                 <i class="fas fa-spinner fa-spin fa-2x text-slate-400"></i>
