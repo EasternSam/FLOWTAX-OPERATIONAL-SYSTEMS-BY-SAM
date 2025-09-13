@@ -49,3 +49,8 @@ body {
     }
 }
 
+/* Estilos para el visor de imágenes */
+#image-viewer-img.cursor-grab { cursor: grab; }
+#image-viewer-img.cursor-grabbing { cursor: grabbing; }
+#image-viewer-img.cursor-zoom-in { cursor: zoom-in; }
+

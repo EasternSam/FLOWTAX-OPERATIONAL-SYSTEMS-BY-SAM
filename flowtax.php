@@ -278,15 +278,26 @@ final class Flow_Tax_Multiservices_Advanced {
             
             <!-- Document Viewer Modal -->
             <div id="doc-viewer-modal" class="fixed inset-0 bg-black/70 z-50 items-center justify-center p-2 sm:p-4 hidden">
-                <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-full max-h-[95vh] flex flex-col">
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-full max-h-[95vh] flex flex-col">
                     <header class="flex items-center justify-between p-3 border-b bg-slate-50 rounded-t-lg flex-shrink-0">
                         <h3 id="viewer-title" class="font-semibold text-slate-800 truncate pr-4 text-sm sm:text-base"></h3>
-                        <button id="close-viewer-btn" class="text-slate-500 hover:text-red-600 transition-colors">
-                            <i class="fas fa-times fa-lg"></i>
-                        </button>
+                        <div class="flex items-center space-x-4">
+                            <!-- Controles de Zoom para imágenes -->
+                            <div id="image-zoom-controls" class="hidden items-center space-x-2">
+                                <button data-zoom="out" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Alejar"><i class="fas fa-search-minus"></i></button>
+                                <span id="zoom-level-display" class="text-sm font-medium text-slate-600 w-12 text-center">100%</span>
+                                <button data-zoom="in" class="h-8 w-8 rounded-md text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Acercar"><i class="fas fa-search-plus"></i></button>
+                            </div>
+                            <button id="close-viewer-btn" class="text-slate-500 hover:text-red-600 transition-colors">
+                                <i class="fas fa-times fa-lg"></i>
+                            </button>
+                        </div>
                     </header>
-                    <div class="flex-1 p-1 bg-slate-200 overflow-y-auto ios-scroll-touch">
-                        <iframe src="about:blank" class="w-full h-full border-0"></iframe>
+                    <div class="flex-1 bg-slate-200 overflow-hidden relative">
+                        <div id="image-viewer-container" class="w-full h-full overflow-auto flex items-center justify-center p-4 hidden">
+                           <img id="image-viewer-img" src="" alt="Vista previa de imagen" class="max-w-full max-h-full transition-transform duration-200 origin-center">
+                        </div>
+                        <iframe id="doc-viewer-iframe" src="about:blank" class="w-full h-full border-0 hidden"></iframe>
                     </div>
                 </div>
             </div>

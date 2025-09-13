@@ -50,19 +50,22 @@ class Flowtax_Ajax_Handler {
     public static function handle_add_note() {
         self::check_permissions();
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
-        $note_content = isset($_POST['note_content']) ? sanitize_textarea_field($_POST['note_content']) : '';
+        $note_content_raw = isset($_POST['note_content']) ? trim(stripslashes($_POST['note_content'])) : '';
 
-        if (empty($note_content) || $post_id === 0) {
-            wp_send_json_error(['message' => 'Faltan datos para añadir la nota.']);
+        if (empty($note_content_raw) || $post_id === 0) {
+            wp_send_json_error(['message' => 'Faltan datos para añadir la nota. El contenido no puede estar vacío.']);
             return;
         }
+        
+        // Sanitize for storage
+        $note_content_sanitized = wp_kses_post($note_content_raw);
 
         $notes = self::get_json_meta($post_id, '_historial_notas');
         $current_user = wp_get_current_user();
         
         $new_note = [
             'author' => $current_user->display_name,
-            'content' => $note_content,
+            'content' => $note_content_sanitized,
             'date' => current_time('mysql')
         ];
 
@@ -148,12 +151,19 @@ class Flowtax_Ajax_Handler {
         }
 
         $caso_data = self::format_post_data($caso_post);
-        $caso_data['meta'] = get_post_meta($post_id);
+        $all_meta = get_post_meta($post_id);
+        $caso_data['meta'] = $all_meta;
 
-        // CORRECCIÓN: Pre-procesar los metadatos JSON para asegurar que siempre sean válidos
-        $docs_array = self::get_json_meta($post_id, '_documentos_adjuntos');
-        $notes_array = self::get_json_meta($post_id, '_historial_notas');
+        // CORRECCIÓN: Procesar de forma segura los metadatos JSON para garantizar que siempre sean válidos.
+        // Se decodifica y re-codifica para limpiar cualquier dato malformado de la DB.
+        $docs_json = isset($all_meta['_documentos_adjuntos'][0]) ? $all_meta['_documentos_adjuntos'][0] : '[]';
+        $docs_array = json_decode($docs_json, true);
+        if (!is_array($docs_array)) { $docs_array = []; }
         
+        $notes_json = isset($all_meta['_historial_notas'][0]) ? $all_meta['_historial_notas'][0] : '[]';
+        $notes_array = json_decode($notes_json, true);
+        if (!is_array($notes_array)) { $notes_array = []; }
+
         // Sobrescribir los metadatos con una cadena JSON válida, asegurando que el JS no falle.
         $caso_data['meta']['_documentos_adjuntos'] = [wp_json_encode($docs_array)];
         $caso_data['meta']['_historial_notas'] = [wp_json_encode($notes_array)];
