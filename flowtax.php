@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional. Ahora funciona con un shortcode.
- * Version:           6.1.0
+ * Version:           7.3.0
  * Author:            Samuel Diaz Pilier
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -25,7 +25,7 @@ define('FLOWTAX_DEBUG_MODE', true);
  */
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '6.1.0';
+    const VERSION = '7.3.0';
     private static $instance;
     private static $is_spa_page = false; // Flag para PWA y otras lógicas de página
 
@@ -56,6 +56,7 @@ final class Flow_Tax_Multiservices_Advanced {
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-ajax-handler.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-assets.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-validator.php';
+        require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-activity-log.php';
 
         $debugger_path = FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php';
         if (FLOWTAX_DEBUG_MODE && file_exists($debugger_path)) {
@@ -188,8 +189,6 @@ final class Flow_Tax_Multiservices_Advanced {
     }
 
     public function render_spa_shortcode($atts) {
-        // La detección ahora se hace en el hook 'wp', ya no se necesita la línea `self::$is_spa_page = true;` aquí.
-
         if (!current_user_can('manage_options')) {
             return '<p>Debes iniciar sesión con una cuenta de administrador para usar este sistema. <a href="' . esc_url(wp_login_url(get_permalink())) . '">Iniciar Sesión</a></p>';
         }
@@ -199,15 +198,19 @@ final class Flow_Tax_Multiservices_Advanced {
         wp_enqueue_style('flowtax-spa-styles', FLOWTAX_MS_PLUGIN_URL . 'assets/css/spa-styles.css', [], FLOWTAX_MS_VERSION);
         wp_enqueue_script('flowtax-spa-main', FLOWTAX_MS_PLUGIN_URL . 'assets/js/spa-main.js', [], FLOWTAX_MS_VERSION, true);
 
-        // Pasamos datos de PHP a JavaScript. Es crucial usar get_permalink() para que la SPA sepa en qué página está.
+        // Pasamos datos de PHP a JavaScript.
         $ajax_params = [
             'ajax_url'   => admin_url('admin-ajax.php'),
             'nonce'      => wp_create_nonce('flowtax_ajax_nonce'),
             'home_url'   => get_permalink(),
-            'debug_mode' => defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE
+            'debug_mode' => defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE,
+            'watchman_mode_status' => (bool) get_user_meta(get_current_user_id(), 'flowtax_watchman_mode_enabled', true)
         ];
         wp_localize_script('flowtax-spa-main', 'flowtax_ajax', $ajax_params);
         wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css');
+        
+        // --- OneSignal SDK para Notificaciones Push ---
+        wp_enqueue_script('onesignal-sdk', 'https://cdn.onesignal.com/sdks/OneSignalSDK.js', [], null, false);
 
 
         // --- Renderizado del HTML de la SPA ---
@@ -215,6 +218,43 @@ final class Flow_Tax_Multiservices_Advanced {
         
         ob_start();
         ?>
+        <script>
+            window.OneSignal = window.OneSignal || [];
+            OneSignal.push(function() {
+                OneSignal.init({
+                    appId: "912f40e0-b0b4-4182-8be7-3fca929d3769",
+                });
+
+                // Cuando el usuario se suscribe (o ya está suscrito), obtenemos su ID
+                OneSignal.on('subscriptionChange', function(isSubscribed) {
+                    if (isSubscribed) {
+                        OneSignal.getUserId(function(userId) {
+                            console.log("OneSignal User ID:", userId);
+                            
+                            // Enviar el Player ID a WordPress para guardarlo
+                            const params = new URLSearchParams({
+                                action: 'flowtax_save_onesignal_player_id',
+                                nonce: '<?php echo wp_create_nonce('flowtax_ajax_nonce'); ?>',
+                                player_id: userId
+                            });
+
+                            fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                                method: 'POST',
+                                body: params
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if(result.success) {
+                                    console.log('Player ID guardado en WordPress.');
+                                } else {
+                                    console.error('Error al guardar Player ID:', result.data.message);
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        </script>
         <div id="flowtax-container-wrapper">
              <!-- Overlay para menú móvil -->
             <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-30 hidden lg:hidden"></div>
@@ -237,6 +277,7 @@ final class Flow_Tax_Multiservices_Advanced {
                             ['view' => 'payroll', 'title' => 'Payroll', 'icon' => 'fa-solid fa-money-check-dollar'],
                             ['view' => 'traducciones', 'title' => 'Traducciones', 'icon' => 'fa-solid fa-language'],
                             ['view' => 'transacciones', 'title' => 'Pagos y Cheques', 'icon' => 'fa-solid fa-cash-register'],
+                            ['view' => 'actividad', 'title' => 'Registro de Actividad', 'icon' => 'fa-solid fa-history'],
                         ];
                         foreach ($modules as $module) {
                             echo '<a href="#" data-spa-link data-view="'.$module['view'].'" class="sidebar-link flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-blue-600 rounded-md transition-colors duration-200">
@@ -247,6 +288,20 @@ final class Flow_Tax_Multiservices_Advanced {
                         ?>
                     </nav>
                      <div class="px-3 py-3 border-t border-slate-200">
+                        <!-- Watchman Mode Toggle -->
+                        <div class="mb-2 p-2 rounded-md hover:bg-slate-50">
+                             <label for="watchman-mode-toggle" class="flex items-center justify-between cursor-pointer">
+                                <span class="flex items-center text-sm font-medium text-slate-600">
+                                    <i class="fa-solid fa-shield-halved fa-fw w-6 text-center mr-3 text-slate-400"></i>
+                                    <span>Modo Vigilante</span>
+                                </span>
+                                <div class="relative">
+                                    <input type="checkbox" id="watchman-mode-toggle" class="sr-only">
+                                    <div class="block bg-slate-300 w-10 h-6 rounded-full"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                                </div>
+                            </label>
+                        </div>
                         <a href="<?php echo esc_url(wp_logout_url(home_url())); ?>" class="sidebar-link-logout flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors duration-200">
                            <i class="fa-solid fa-arrow-right-from-bracket fa-fw w-6 text-center mr-3 text-slate-400"></i>
                            <span>Salir del sistema</span>
@@ -261,6 +316,24 @@ final class Flow_Tax_Multiservices_Advanced {
                             <i class="fas fa-bars fa-lg"></i>
                         </button>
                          <div class="flex items-center ml-auto">
+                            <!-- Notification Bell -->
+                            <div class="relative mr-4" id="notification-bell-container">
+                                <button id="notification-bell-btn" class="text-slate-500 hover:text-blue-600 h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+                                    <i class="fas fa-bell"></i>
+                                    <span id="notification-indicator" class="absolute top-1 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white hidden"></span>
+                                </button>
+                                <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-slate-200 z-50 hidden">
+                                    <div class="p-3 border-b border-slate-100">
+                                        <h4 class="font-semibold text-sm text-slate-800">Notificaciones</h4>
+                                    </div>
+                                    <div id="notification-list" class="max-h-96 overflow-y-auto">
+                                        <div class="p-4 text-center text-sm text-slate-500">Cargando...</div>
+                                    </div>
+                                    <div class="p-2 bg-slate-50 border-t border-slate-100 rounded-b-lg">
+                                        <a href="#" data-spa-link data-view="actividad" id="view-all-notifications-link" class="block text-center text-sm font-semibold text-blue-600 hover:underline">Ver todo el registro</a>
+                                    </div>
+                                </div>
+                            </div>
                             <span class="text-slate-600 font-medium mr-3 text-sm hidden sm:inline">Hola, <?php echo esc_html($current_user->display_name); ?></span>
                             <img class="h-9 w-9 rounded-full object-cover ring-2 ring-offset-2 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
                         </div>

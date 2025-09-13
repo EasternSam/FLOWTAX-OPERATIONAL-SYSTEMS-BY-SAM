@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // La inicialización de componentes UI ahora se hace después de cargar cada vista.
             if (containerWrapper) {
                 this.initMobileMenu();
+                this.initNotifications();
+                this.initWatchmanMode();
             }
             window.addEventListener('popstate', this.handlePopState.bind(this));
             document.body.addEventListener('click', this.handleGlobalClick.bind(this));
@@ -141,6 +143,129 @@ document.addEventListener('DOMContentLoaded', function () {
              document.querySelectorAll('#spa-sidebar .sidebar-link').forEach(link => {
                 link.classList.toggle('active', link.dataset.view === view);
             });
+        },
+
+        initNotifications() {
+            const container = document.getElementById('notification-bell-container');
+            if (!container) return;
+        
+            const btn = document.getElementById('notification-bell-btn');
+            const dropdown = document.getElementById('notification-dropdown');
+            const indicator = document.getElementById('notification-indicator');
+            const list = document.getElementById('notification-list');
+        
+            const toggleDropdown = (show) => {
+                const isVisible = !dropdown.classList.contains('hidden');
+                if (typeof show !== 'undefined' && show === isVisible) return;
+        
+                if (isVisible) {
+                    dropdown.classList.add('hidden');
+                } else {
+                    dropdown.classList.remove('hidden');
+                    this.fetchNotifications(list, indicator);
+                }
+            };
+        
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown();
+            });
+        
+            document.body.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    if (!dropdown.classList.contains('hidden')) {
+                        toggleDropdown(false);
+                    }
+                }
+            });
+
+            container.querySelector('#view-all-notifications-link').addEventListener('click', () => toggleDropdown(false));
+        
+            this.checkForNewNotifications(indicator);
+            setInterval(() => this.checkForNewNotifications(indicator), 30000);
+        },
+
+        initWatchmanMode() {
+            const toggle = document.getElementById('watchman-mode-toggle');
+            if (!toggle) return;
+
+            // Set initial state from localized script data
+            toggle.checked = window.flowtax_ajax.watchman_mode_status;
+
+            toggle.addEventListener('change', this.handleToggleWatchmanMode.bind(this));
+        },
+
+        async handleToggleWatchmanMode(event) {
+            const toggle = event.target;
+            const originalState = !toggle.checked; // The state before the click
+        
+            try {
+                const params = new URLSearchParams({
+                    action: 'flowtax_toggle_watchman_mode',
+                    nonce: flowtax_ajax.nonce
+                });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                
+                if (!result.success) throw new Error(result.data.message || 'Error updating status.');
+
+                this.showNotification(result.data.message, 'success');
+                // The toggle is already in the new state, so no need to change it
+                
+            } catch (error) {
+                Debug.log(error, 'Error Watchman Mode');
+                this.showNotification(`Error: ${error.message}`, 'error');
+                // Revert toggle to its original state on failure
+                toggle.checked = originalState;
+            }
+        },
+
+        async fetchNotifications(list, indicator) {
+            list.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">Cargando...</div>`;
+            indicator.classList.add('hidden');
+        
+            try {
+                const params = new URLSearchParams({ action: 'flowtax_get_notifications', nonce: flowtax_ajax.nonce });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                Debug.renderBackendLogs(result.data.debug_logs);
+        
+                if (!result.success) throw new Error('Could not fetch notifications.');
+        
+                if (result.data.notifications && result.data.notifications.length > 0) {
+                    list.innerHTML = result.data.notifications.map(n => `
+                        <div class="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                            <p class="text-sm text-slate-700">${n.title}</p>
+                            <p class="text-xs text-slate-400 mt-1">${n.time_ago} por <strong>${n.author}</strong></p>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No hay notificaciones nuevas.</div>`;
+                }
+            } catch (error) {
+                Debug.log(error, 'Error Fetching Notifications');
+                list.innerHTML = `<div class="p-4 text-center text-sm text-red-500">Error al cargar.</div>`;
+            }
+        },
+
+        async checkForNewNotifications(indicator) {
+            try {
+                const params = new URLSearchParams({
+                    action: 'flowtax_get_notifications',
+                    nonce: flowtax_ajax.nonce,
+                    check_only: 'true'
+                });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+        
+                if (result.success && result.data.unread_count > 0) {
+                    indicator.classList.remove('hidden');
+                } else {
+                    indicator.classList.add('hidden');
+                }
+            } catch (error) {
+                // Fail silently
+            }
         },
 
         showNotification(message, type = 'success') {
@@ -686,6 +811,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             <td data-label="Idiomas">${item.idioma_origen || ''} → ${item.idioma_destino || ''}</td>
                             <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
                             <td data-label="Fecha">${item.fecha}</td>`;
+                        break;
+                    case 'actividad':
+                         rowContent = `
+                            <td data-label="Acción">${item.title}</td>
+                            <td data-label="Usuario">${item.author}</td>
+                            <td data-label="Fecha">${item.time_ago}</td>`;
                         break;
                 }
                 return `<tr>${rowContent}

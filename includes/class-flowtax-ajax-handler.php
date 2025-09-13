@@ -11,7 +11,10 @@ class Flowtax_Ajax_Handler {
             'get_caso_details',
             'upload_document',
             'delete_document',
-            'add_note'
+            'add_note',
+            'get_notifications',
+            'toggle_watchman_mode',
+            'save_onesignal_player_id'
         ];
         foreach ($ajax_actions as $action) {
             add_action("wp_ajax_flowtax_{$action}", array(__CLASS__, "handle_{$action}"));
@@ -25,10 +28,6 @@ class Flowtax_Ajax_Handler {
         }
     }
     
-    /**
-     * Helper function to safely decode JSON from post meta.
-     * @return array Decoded data or an empty array on failure.
-     */
     private static function get_json_meta($post_id, $key) {
         $json = get_post_meta($post_id, $key, true);
         if (empty($json)) {
@@ -38,12 +37,80 @@ class Flowtax_Ajax_Handler {
         return (is_array($data)) ? $data : [];
     }
     
-    /**
-     * Helper function to safely encode and update JSON post meta.
-     */
     private static function update_json_meta($post_id, $key, $data) {
         $json = wp_json_encode($data);
         update_post_meta($post_id, $key, $json);
+    }
+
+    public static function handle_save_onesignal_player_id() {
+        self::check_permissions();
+        $player_id = isset($_POST['player_id']) ? sanitize_text_field($_POST['player_id']) : '';
+        $user_id = get_current_user_id();
+
+        if (empty($player_id) || $user_id === 0) {
+            wp_send_json_error(['message' => 'Faltan datos (Player ID o User ID).']);
+            return;
+        }
+
+        update_user_meta($user_id, 'onesignal_player_id', $player_id);
+        wp_send_json_success(['message' => 'Player ID guardado.']);
+    }
+
+    public static function handle_toggle_watchman_mode() {
+        self::check_permissions();
+        $user_id = get_current_user_id();
+        $current_status = (bool) get_user_meta($user_id, 'flowtax_watchman_mode_enabled', true);
+        $new_status = !$current_status;
+        update_user_meta($user_id, 'flowtax_watchman_mode_enabled', $new_status);
+        
+        $message = $new_status ? 'Modo Vigilante activado.' : 'Modo Vigilante desactivado.';
+        wp_send_json_success(['message' => $message, 'new_status' => $new_status]);
+    }
+
+    public static function handle_get_notifications() {
+        self::check_permissions();
+        $user_id = get_current_user_id();
+        $last_checked = get_user_meta($user_id, 'flowtax_last_notification_check', true) ?: 0;
+    
+        $query_args = [
+            'post_type' => 'flowtax_log',
+            'posts_per_page' => 10,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'date_query' => [
+                ['column' => 'post_date_gmt', 'after' => gmdate('Y-m-d H:i:s', $last_checked), 'inclusive' => false]
+            ]
+        ];
+    
+        $log_query = new WP_Query($query_args);
+        $unread_count = $log_query->found_posts;
+    
+        if (isset($_POST['check_only'])) {
+            wp_send_json_success(['unread_count' => $unread_count]);
+            return;
+        }
+    
+        // Reset query to get the latest 10, regardless of read status
+        unset($query_args['date_query']);
+        $log_query = new WP_Query($query_args);
+        $notifications = [];
+        if ($log_query->have_posts()) {
+            while ($log_query->have_posts()) {
+                $log_query->the_post();
+                $notifications[] = [
+                    'id' => get_the_ID(),
+                    'title' => get_the_title(),
+                    'author' => get_post_meta(get_the_ID(), '_user_name', true) ?: 'Sistema',
+                    'time_ago' => human_time_diff(get_the_time('U'), current_time('timestamp')) . ' atrás'
+                ];
+            }
+        }
+        wp_reset_postdata();
+    
+        // Update last checked time to now
+        update_user_meta($user_id, 'flowtax_last_notification_check', current_time('timestamp'));
+    
+        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['notifications' => $notifications]));
     }
 
 
@@ -57,9 +124,7 @@ class Flowtax_Ajax_Handler {
             return;
         }
         
-        // Sanitize for storage
         $note_content_sanitized = wp_kses_post($note_content_raw);
-
         $notes = self::get_json_meta($post_id, '_historial_notas');
         $current_user = wp_get_current_user();
         
@@ -70,8 +135,15 @@ class Flowtax_Ajax_Handler {
         ];
 
         array_unshift($notes, $new_note);
-
         self::update_json_meta($post_id, '_historial_notas', $notes);
+        
+        // Log the action
+        $parent_post = get_post($post_id);
+        if ($parent_post) {
+            $action_string = sprintf('Añadió una nota al caso "%s".', esc_html($parent_post->post_title));
+            Flowtax_Activity_Log::log($action_string, $post_id, $parent_post->post_type);
+        }
+
         wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Nota añadida.']));
     }
 
@@ -79,21 +151,30 @@ class Flowtax_Ajax_Handler {
         self::check_permissions();
         $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
         $attachment_id = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
-
+    
         if ($post_id === 0 || $attachment_id === 0) {
             wp_send_json_error(['message' => 'Datos inválidos.']);
             return;
         }
-        
+    
         $documents = self::get_json_meta($post_id, '_documentos_adjuntos');
-
+        
+        // CORRECCIÓN: Usar una función anónima tradicional para compatibilidad con PHP < 7.3
         $updated_documents = array_filter($documents, function($doc) use ($attachment_id) {
             return isset($doc['id']) && intval($doc['id']) !== $attachment_id;
         });
-
+    
+        $doc_name = basename(get_attached_file($attachment_id));
         wp_delete_attachment($attachment_id, true);
         self::update_json_meta($post_id, '_documentos_adjuntos', array_values($updated_documents));
-
+    
+        // Log the action
+        $parent_post = get_post($post_id);
+        if ($parent_post) {
+            $action_string = sprintf('Eliminó el documento "%s" del caso "%s".', esc_html($doc_name), esc_html($parent_post->post_title));
+            Flowtax_Activity_Log::log($action_string, $post_id, $parent_post->post_type);
+        }
+    
         wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Documento eliminado con éxito.']));
     }
 
@@ -132,6 +213,13 @@ class Flowtax_Ajax_Handler {
 
         $documents[] = $new_document;
         self::update_json_meta($post_id, '_documentos_adjuntos', $documents);
+        
+        // Log the action
+        $parent_post = get_post($post_id);
+        if ($parent_post) {
+            $action_string = sprintf('Subió el documento "%s" al caso "%s".', esc_html($new_document['name']), esc_html($parent_post->post_title));
+            Flowtax_Activity_Log::log($action_string, $post_id, $parent_post->post_type);
+        }
 
         wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Archivo subido con éxito.']));
     }
@@ -154,8 +242,6 @@ class Flowtax_Ajax_Handler {
         $all_meta = get_post_meta($post_id);
         $caso_data['meta'] = $all_meta;
 
-        // CORRECCIÓN: Procesar de forma segura los metadatos JSON para garantizar que siempre sean válidos.
-        // Se decodifica y re-codifica para limpiar cualquier dato malformado de la DB.
         $docs_json = isset($all_meta['_documentos_adjuntos'][0]) ? $all_meta['_documentos_adjuntos'][0] : '[]';
         $docs_array = json_decode($docs_json, true);
         if (!is_array($docs_array)) { $docs_array = []; }
@@ -164,11 +250,9 @@ class Flowtax_Ajax_Handler {
         $notes_array = json_decode($notes_json, true);
         if (!is_array($notes_array)) { $notes_array = []; }
 
-        // Sobrescribir los metadatos con una cadena JSON válida, asegurando que el JS no falle.
         $caso_data['meta']['_documentos_adjuntos'] = [wp_json_encode($docs_array)];
         $caso_data['meta']['_historial_notas'] = [wp_json_encode($notes_array)];
 
-        // Obtener datos del cliente asociado
         $cliente_data = null;
         $cliente_id = get_post_meta($post_id, '_cliente_id', true);
         if ($cliente_id) {
@@ -189,33 +273,26 @@ class Flowtax_Ajax_Handler {
             wp_send_json_error(['message' => 'ID de cliente no válido.']);
             return;
         }
-
-        // Datos del cliente
+    
         $cliente_post = get_post($cliente_id);
         $cliente_data = self::format_post_data($cliente_post);
         $cliente_data['meta'] = get_post_meta($cliente_id);
-
-        // Casos asociados
+    
         $casos = [];
         $post_types = ['impuestos', 'peticion_familiar', 'ciudadania', 'renovacion_residencia', 'traduccion'];
-        
-        foreach($post_types as $pt) {
-            $query = new WP_Query([
-                'post_type' => $pt,
-                'posts_per_page' => -1,
-                'meta_key' => '_cliente_id',
-                'meta_value' => $cliente_id
-            ]);
+    
+        foreach ($post_types as $pt) {
+            $query = new WP_Query(['post_type' => $pt, 'posts_per_page' => -1, 'meta_key' => '_cliente_id', 'meta_value' => $cliente_id]);
             if ($query->have_posts()) {
-                 $casos = array_merge($casos, array_map('self::format_post_data', $query->posts));
+                $casos = array_merge($casos, array_map('self::format_post_data', $query->posts));
             }
         }
-        
-        // Ordenar casos por fecha de forma descendente
+    
+        // CORRECCIÓN: Usar una función anónima tradicional para compatibilidad con PHP < 7.3
         usort($casos, function($a, $b) {
             return strtotime($b['fecha_raw']) - strtotime($a['fecha_raw']);
         });
-
+    
         wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['cliente' => $cliente_data, 'casos' => $casos]));
     }
     
@@ -223,11 +300,7 @@ class Flowtax_Ajax_Handler {
         self::check_permissions();
         $search_term = sanitize_text_field($_POST['search_term']);
         $post_type = sanitize_text_field($_POST['post_type']);
-        $args = [
-            'post_type' => explode(',', $post_type),
-            'posts_per_page' => -1,
-            's' => $search_term,
-        ];
+        $args = ['post_type' => explode(',', $post_type), 'posts_per_page' => -1, 's' => $search_term];
         $query = new WP_Query($args);
         $results = array_map('self::format_post_data', $query->posts);
         wp_reset_postdata();
@@ -238,6 +311,14 @@ class Flowtax_Ajax_Handler {
         self::check_permissions();
         $post_id = intval($_POST['post_id']);
         if ($post_id > 0) {
+            $post_to_delete = get_post($post_id);
+            if ($post_to_delete) {
+                $cpt_object = get_post_type_object($post_to_delete->post_type);
+                $cpt_name = $cpt_object ? strtolower($cpt_object->labels->singular_name) : 'registro';
+                $action_string = sprintf('Eliminó el %s "%s".', $cpt_name, esc_html($post_to_delete->post_title));
+                Flowtax_Activity_Log::log($action_string);
+            }
+
             $result = wp_delete_post($post_id, true);
             if ($result) {
                 wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Registro eliminado con éxito.']));
@@ -284,14 +365,28 @@ class Flowtax_Ajax_Handler {
     public static function handle_save_form() {
         self::check_permissions();
 
-        // Generar título en el servidor como respaldo para casos de inmigración
         $post_type = $_POST['post_type'] ?? '';
-        if (in_array($post_type, ['peticion_familiar', 'ciudadania', 'renovacion_residencia'])) {
-            if (empty($_POST['post_title']) && !empty($_POST['cliente_id']) && !empty($_POST['post_type'])) {
+        
+        // Generación de título en el servidor
+        if (in_array($post_type, ['peticion_familiar', 'ciudadania', 'renovacion_residencia', 'impuestos', 'traduccion'])) {
+            if (!empty($_POST['cliente_id'])) {
                 $cliente_name = get_the_title(intval($_POST['cliente_id']));
-                $cpt_object = get_post_type_object($post_type);
-                $cpt_name = $cpt_object ? $cpt_object->labels->singular_name : 'Caso';
-                $_POST['post_title'] = "{$cpt_name} para {$cliente_name}";
+                
+                switch ($post_type) {
+                    case 'impuestos':
+                        $ano_fiscal = $_POST['ano_fiscal'] ?? date('Y')-1;
+                        $_POST['post_title'] = "Impuestos {$ano_fiscal} para {$cliente_name}";
+                        break;
+                    case 'traduccion':
+                         $origen = $_POST['idioma_origen'] ?? '';
+                         $_POST['post_title'] = "Traducción ({$origen}) para {$cliente_name}";
+                        break;
+                    default: // Casos de inmigración
+                        $cpt_object = get_post_type_object($post_type);
+                        $cpt_name = $cpt_object ? $cpt_object->labels->singular_name : 'Caso';
+                        $_POST['post_title'] = "{$cpt_name} para {$cliente_name}";
+                        break;
+                }
             }
         }
         
@@ -308,7 +403,9 @@ class Flowtax_Ajax_Handler {
 
         $post_data = ['post_type' => $post_type, 'post_title' => $sanitized_data['post_title'], 'post_status' => 'publish'];
         
-        if ($post_id > 0) {
+        $is_update = $post_id > 0;
+        
+        if ($is_update) {
             $post_data['ID'] = $post_id;
             $result = wp_update_post($post_data, true);
         } else {
@@ -321,6 +418,13 @@ class Flowtax_Ajax_Handler {
         }
         
         $new_post_id = $result;
+        
+        $cpt_object = get_post_type_object($post_type);
+        $cpt_name = $cpt_object ? strtolower($cpt_object->labels->singular_name) : 'registro';
+        $action_verb = $is_update ? 'actualizó el' : 'creó el nuevo';
+        $action_string = sprintf('%s %s "%s".', ucfirst($action_verb), $cpt_name, esc_html($sanitized_data['post_title']));
+        Flowtax_Activity_Log::log($action_string, $new_post_id, $post_type);
+
         Flowtax_Meta_Boxes::save_meta_data($new_post_id, $sanitized_data);
         if (isset($sanitized_data['estado_caso'])) {
             wp_set_post_terms($new_post_id, intval($sanitized_data['estado_caso']), 'estado_caso');
@@ -334,14 +438,30 @@ class Flowtax_Ajax_Handler {
         $map = [
             'impuestos' => 'impuestos', 'peticion_familiar' => 'inmigracion', 'ciudadania' => 'inmigracion',
             'renovacion_residencia' => 'inmigracion', 'nomina' => 'payroll', 'empleado' => 'payroll',
-            'traduccion' => 'traducciones', 'transaccion' => 'transacciones', 'cliente' => 'clientes'
+            'traduccion' => 'traducciones', 'transaccion' => 'transacciones', 'cliente' => 'clientes',
+            'flowtax_log' => 'actividad'
         ];
         return $map[$post_type] ?? 'dashboard';
     }
     
     public static function format_post_data($post) {
         if (!$post instanceof WP_Post) return [];
+        
         $post_id = $post->ID;
+        $post_type = get_post_type($post_id);
+
+        if ($post_type === 'flowtax_log') {
+            return [
+                'ID' => $post_id,
+                'title' => get_the_title($post_id),
+                'author' => get_post_meta($post_id, '_user_name', true) ?: 'Sistema',
+                'time_ago' => human_time_diff(get_the_time('U', $post_id), current_time('timestamp')) . ' atrás',
+                'related_post_id' => get_post_meta($post_id, '_related_post_id', true),
+                'related_post_type' => get_post_meta($post_id, '_related_post_type', true),
+                'view_slug' => self::get_view_for_post_type(get_post_meta($post_id, '_related_post_type', true))
+            ];
+        }
+
         $cliente_id = get_post_meta($post_id, '_cliente_id', true);
         $cliente_nombre = $cliente_id ? get_the_title($cliente_id) : 'N/A';
         
@@ -358,11 +478,11 @@ class Flowtax_Ajax_Handler {
             }
         }
         
-        $post_type_obj = get_post_type_object(get_post_type($post_id));
+        $post_type_obj = get_post_type_object($post_type);
         $singular_name = $post_type_obj ? $post_type_obj->labels->singular_name : '';
         
         return [
-            'ID' => $post_id, 'title' => get_the_title($post_id), 'post_type' => get_post_type($post_id),
+            'ID' => $post_id, 'title' => get_the_title($post_id), 'post_type' => $post_type,
             'singular_name' => $singular_name, 'cliente_nombre' => $cliente_nombre, 'estado' => $estado,
             'estado_color' => $estado_color, 'fecha' => get_the_date('d M Y', $post_id),
             'fecha_raw' => $post->post_date,
@@ -370,7 +490,7 @@ class Flowtax_Ajax_Handler {
             'ano_fiscal' => get_post_meta($post_id, '_ano_fiscal', true),
             'idioma_origen' => get_post_meta($post_id, '_idioma_origen', true),
             'idioma_destino' => get_post_meta($post_id, '_idioma_destino', true),
-            'view_slug' => self::get_view_for_post_type(get_post_type($post_id)),
+            'view_slug' => self::get_view_for_post_type($post_type),
         ];
     }
 }

@@ -19,14 +19,19 @@ class Flowtax_CPTs {
             'ciudadania' => ['singular' => 'Caso de Ciudadanía', 'plural' => 'Ciudadanía', 'icon' => 'dashicons-flag'],
             'renovacion_residencia' => ['singular' => 'Renovación de Residencia', 'plural' => 'Renovación Residencia', 'icon' => 'dashicons-id'],
             'traduccion' => ['singular' => 'Traducción', 'plural' => 'Traducciones', 'icon' => 'dashicons-translation'],
-            'transaccion' => ['singular' => 'Transacción', 'plural' => 'Pagos y Cheques', 'icon' => 'dashicons-money-alt']
+            'transaccion' => ['singular' => 'Transacción', 'plural' => 'Pagos y Cheques', 'icon' => 'dashicons-money-alt'],
+            'flowtax_log' => ['singular' => 'Registro de Actividad', 'plural' => 'Registros de Actividad', 'icon' => 'dashicons-list-view']
         ];
 
         foreach ($post_types as $slug => $details) {
+            $is_log_cpt = ($slug === 'flowtax_log');
             register_post_type($slug, [
                 'labels' => ['name' => $details['plural'], 'singular_name' => $details['singular']],
-                'public' => false, 'show_ui' => true, 'show_in_menu' => 'flow-tax-manager',
-                'supports' => ['title', 'editor'], 'menu_icon' => $details['icon']
+                'public' => false, 
+                'show_ui' => true, 
+                'show_in_menu' => $is_log_cpt ? false : 'flow-tax-manager',
+                'supports' => $is_log_cpt ? ['title'] : ['title', 'editor'], 
+                'menu_icon' => $details['icon']
             ]);
         }
     }
