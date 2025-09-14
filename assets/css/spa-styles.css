@@ -95,6 +95,26 @@ input:checked ~ .block {
   background-color: rgb(var(--color-primary));
 }
 
+#online-users-container .online-user-avatar {
+    position: relative;
+    transition: transform 0.2s ease-in-out;
+}
+
+#online-users-container .online-user-avatar:hover {
+    transform: scale(1.15);
+    z-index: 10;
+}
+
+#online-users-container .online-user-avatar img {
+    height: 32px;
+    width: 32px;
+    border-radius: 9999px;
+    object-fit: cover;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px #cbd5e1; /* ring-slate-300 */
+}
+
+
 /* Estilos para botones de acción en tablas */
 .btn-icon, .btn-icon-danger {
     height: 2.75rem; /* 44px - Aumentado */

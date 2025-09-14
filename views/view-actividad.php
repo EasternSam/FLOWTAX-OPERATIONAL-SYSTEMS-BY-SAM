@@ -1,16 +1,34 @@
 <?php
-$query = new WP_Query([
+$user_id_filter = isset($_POST['id']) ? intval($_POST['id']) : 0;
+$query_args = [
     'post_type' => 'flowtax_log',
-    'posts_per_page' => 50, // Paginate later if needed
+    'posts_per_page' => 50,
     'orderby' => 'date',
     'order' => 'DESC'
-]);
+];
+
+$header_title = "Registro de Actividad";
+$header_subtitle = "Un registro completo de todas las acciones realizadas en el sistema.";
+
+if ($user_id_filter > 0) {
+    $user_data = get_userdata($user_id_filter);
+    if ($user_data) {
+        $query_args['author'] = $user_id_filter;
+        $header_title = "Actividad de " . esc_html($user_data->display_name);
+        $header_subtitle = "Mostrando todas las acciones realizadas por este usuario.";
+    }
+}
+
+$query = new WP_Query($query_args);
 $logs = $query->posts;
 ?>
 <div class="p-4 sm:p-6">
     <header class="mb-6">
-        <h1 class="text-2xl font-bold text-slate-800">Registro de Actividad</h1>
-        <p class="text-slate-500 mt-1 text-sm">Un registro completo de todas las acciones realizadas en el sistema.</p>
+        <h1 class="text-2xl font-bold text-slate-800"><?php echo $header_title; ?></h1>
+        <p class="text-slate-500 mt-1 text-sm"><?php echo $header_subtitle; ?></p>
+        <?php if ($user_id_filter > 0): ?>
+            <a href="#" data-spa-link data-view="actividad" class="text-sm text-blue-600 hover:underline mt-2 inline-block">&larr; Ver toda la actividad</a>
+        <?php endif; ?>
     </header>
     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
         <div class="space-y-1">
@@ -62,3 +80,4 @@ $logs = $query->posts;
         </div>
     </div>
 </div>
+

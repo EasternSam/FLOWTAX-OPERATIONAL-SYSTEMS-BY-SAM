@@ -38,6 +38,40 @@ if ($pending_term) {
     }
 }
 
+// Obtener deudas pendientes y vencidas
+$deudas_pendientes_query = new WP_Query([
+    'post_type' => 'deuda',
+    'posts_per_page' => -1,
+    'tax_query' => [
+        [
+            'taxonomy' => 'estado_deuda',
+            'field'    => 'slug',
+            'terms'    => ['pendiente', 'vencido', 'abono'],
+        ],
+    ],
+]);
+
+$total_deudas_pendientes = $deudas_pendientes_query->found_posts;
+$total_pendiente_usd = 0;
+$total_pendiente_dop = 0;
+
+if ($deudas_pendientes_query->have_posts()) {
+    while ($deudas_pendientes_query->have_posts()) {
+        $deudas_pendientes_query->the_post();
+        $monto_deuda = (float) get_post_meta(get_the_ID(), '_monto_deuda', true);
+        $monto_abonado = (float) get_post_meta(get_the_ID(), '_monto_abonado', true);
+        $restante = $monto_deuda - $monto_abonado;
+        $divisa = get_post_meta(get_the_ID(), '_divisa', true) ?: 'USD';
+        
+        if ($divisa === 'USD') {
+            $total_pendiente_usd += $restante;
+        } else {
+            $total_pendiente_dop += $restante;
+        }
+    }
+}
+wp_reset_postdata();
+
 // Formatear la fecha en español
 setlocale(LC_TIME, 'es_ES.UTF-8', 'Spanish');
 $today_date = strftime('%A, %e de %B de %Y');
@@ -60,7 +94,7 @@ if ($current_hour >= 12 && $current_hour < 19) {
     </header>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         <?php
         $kpis = [
             ['title' => 'Clientes Activos', 'count' => $counts['clientes'], 'icon' => 'fa-solid fa-users', 'color' => 'blue', 'view' => 'clientes'],
@@ -92,6 +126,36 @@ if ($current_hour >= 12 && $current_hour < 19) {
 HTML;
         }
         ?>
+    </div>
+
+    <!-- Cuentas por Cobrar Resumen -->
+    <div class="mb-8">
+        <a href="#" data-spa-link data-view="cuentas-por-cobrar" class="block bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div class="mb-4 sm:mb-0">
+                    <div class="flex items-center">
+                        <span class="bg-rose-100 text-rose-600 p-3 rounded-lg mr-4">
+                            <i class="fa-solid fa-file-invoice-dollar fa-lg"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-800">Cuentas por Cobrar</h2>
+                            <p class="text-sm text-slate-500"><?php echo $total_deudas_pendientes; ?> deudas pendientes de pago</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-6 text-right w-full sm:w-auto">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-500">Pendiente DOP</p>
+                        <p class="text-xl font-bold text-rose-600">RD$ <?php echo number_format($total_pendiente_dop, 2); ?></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-500">Pendiente USD</p>
+                        <p class="text-xl font-bold text-rose-600">USD$ <?php echo number_format($total_pendiente_usd, 2); ?></p>
+                    </div>
+                     <i class="fa-solid fa-chevron-right text-slate-400 hidden sm:block"></i>
+                </div>
+            </div>
+        </a>
     </div>
 
     <!-- Main Grid -->
@@ -170,3 +234,4 @@ HTML;
         </div>
     </div>
 </div>
+

@@ -40,18 +40,10 @@ $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
                     <li class="flex items-start"><i class="fas fa-id-card fa-fw w-6 text-slate-300 pt-1"></i><div><div class="h-3 bg-slate-200 rounded-full w-10 mb-1.5"></div><div class="h-4 bg-slate-200 rounded w-28"></div></div></li>
                 </ul>
             </div>
-            <div class="card">
-                <h2 class="card-title">Dirección</h2>
-                <div id="info-direccion" class="mt-4 space-y-4 text-sm">
-                    <!-- Esqueleto de Carga -->
-                    <div><div class="h-3 bg-slate-200 rounded-full w-16 mb-1.5"></div><div class="h-4 bg-slate-200 rounded w-full"></div></div>
-                    <div class="mt-3"><div class="h-3 bg-slate-200 rounded-full w-24 mb-1.5"></div><div class="h-4 bg-slate-200 rounded w-4/5"></div></div>
-                </div>
-            </div>
         </div>
 
-        <!-- Columna Derecha (Casos e Historial) -->
-        <div class="lg:col-span-2">
+        <!-- Columna Derecha (Casos y Deudas) -->
+        <div class="lg:col-span-2 space-y-6">
             <div class="card">
                 <div class="flex justify-between items-center mb-4">
                      <h2 class="card-title">Casos Asociados</h2>
@@ -60,10 +52,13 @@ $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
                 <div id="casos-asociados-lista" class="space-y-3"><p class="text-center py-8 text-slate-500">Cargando casos...</p></div>
             </div>
 
-             <div class="card mt-6">
-                <h2 class="card-title">Historial Reciente</h2>
-                <div id="historial-cliente-lista" class="mt-4 flow-root">
-                    <p class="text-center py-8 text-slate-500">Cargando historial...</p>
+             <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="card-title">Deudas y Pagos</h2>
+                    <a href="#" data-spa-link data-view="cuentas-por-cobrar" data-action="create" class="btn-secondary text-xs"><i class="fas fa-plus mr-1.5"></i> Nueva Deuda</a>
+                </div>
+                <div id="deudas-asociadas-lista" class="space-y-3">
+                    <p class="text-center py-8 text-slate-500">Cargando deudas...</p>
                 </div>
             </div>
         </div>
@@ -71,10 +66,10 @@ $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
     
     <!-- Plantillas Ocultas para JS -->
     <template id="caso-item-template">
-        <a href="#" class="caso-item block p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-green-400 transition-all duration-200">
+        <a href="#" class="caso-item block p-4 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
             <div class="flex justify-between items-center">
                 <div>
-                    <p class="font-semibold text-green-600"></p>
+                    <p class="font-semibold text-slate-700"></p>
                     <p class="text-xs text-slate-500"></p>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -85,27 +80,27 @@ $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         </a>
     </template>
     
-    <template id="historial-item-template">
-         <li class="relative pb-8">
-            <div class="absolute top-4 left-4 -ml-px mt-0.5 h-full w-0.5 bg-slate-200"></div>
-            <div class="relative flex items-start space-x-3">
-                <div>
-                    <div class="relative px-1">
-                        <div class="h-8 w-8 bg-slate-100 rounded-full ring-8 ring-white flex items-center justify-center">
-                            <i class="historial-icon fas text-slate-500"></i>
-                        </div>
-                    </div>
+    <template id="deuda-item-template">
+        <div class="deuda-item block p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all duration-200">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                <div class="flex-grow">
+                    <p class="font-semibold text-slate-700"></p>
+                    <p class="text-xs text-slate-400"></p>
                 </div>
-                <div class="min-w-0 flex-1 py-1.5">
-                    <div class="text-sm text-slate-600">
-                        <span class="historial-texto"></span>
+                <div class="flex items-center gap-4">
+                     <div class="text-right">
+                        <p class="font-semibold text-green-600 balance-restante"></p>
+                        <p class="text-xs text-slate-500">de <span class="balance-total"></span></p>
                     </div>
-                    <div class="mt-1 text-xs text-slate-400">
-                        <span class="historial-fecha"></span> por <strong class="historial-autor"></strong>
+                    <span class="status-badge text-xs font-semibold px-2 py-0.5 rounded-full"></span>
+                    <div class="flex items-center">
+                        <button class="btn-icon text-green-500 add-payment-btn" title="Registrar Pago"><i class="fas fa-dollar-sign"></i></button>
+                        <a href="#" class="btn-icon edit-deuda-btn" title="Editar Deuda"><i class="fas fa-edit"></i></a>
                     </div>
                 </div>
             </div>
-        </li>
+        </div>
     </template>
+
 </div>
 

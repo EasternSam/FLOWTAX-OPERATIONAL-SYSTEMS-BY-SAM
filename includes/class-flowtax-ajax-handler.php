@@ -16,7 +16,9 @@ class Flowtax_Ajax_Handler {
             'toggle_watchman_mode',
             'save_onesignal_player_id',
             'get_live_activity',
-            'send_reminder'
+            'send_reminder',
+            'update_payment',
+            'get_online_users'
         ];
         foreach ($ajax_actions as $action) {
             add_action("wp_ajax_flowtax_{$action}", array(__CLASS__, "handle_{$action}"));
@@ -41,10 +43,56 @@ class Flowtax_Ajax_Handler {
         $json = wp_json_encode($data);
         update_post_meta($post_id, $key, $json);
     }
+
+    public static function handle_update_payment() {
+        self::check_permissions();
+        $deuda_id = isset($_POST['deuda_id']) ? intval($_POST['deuda_id']) : 0;
+        $abono_str = isset($_POST['monto_abono']) ? sanitize_text_field($_POST['monto_abono']) : '0';
+        $abono_monto = floatval(preg_replace('/[^0-9.]/', '', $abono_str));
+    
+        if ($deuda_id === 0 || $abono_monto <= 0) {
+            wp_send_json_error(['message' => 'Datos inválidos para procesar el pago.']);
+            return;
+        }
+    
+        $monto_total = floatval(get_post_meta($deuda_id, '_monto_deuda', true));
+        $monto_abonado_actual = floatval(get_post_meta($deuda_id, '_monto_abonado', true));
+    
+        $nuevo_monto_abonado = $monto_abonado_actual + $abono_monto;
+        $restante = $monto_total - $nuevo_monto_abonado;
+    
+        $estado_slug = '';
+        if ($restante <= 0.009) { // Usar una pequeña tolerancia para errores de punto flotante
+            $estado_slug = 'pagado';
+            $nuevo_monto_abonado = $monto_total; 
+            $restante = 0;
+        } else {
+            $estado_slug = 'abono';
+        }
+        
+        update_post_meta($deuda_id, '_monto_abonado', $nuevo_monto_abonado);
+    
+        $term = get_term_by('slug', $estado_slug, 'estado_deuda');
+        if ($term) {
+            wp_set_post_terms($deuda_id, $term->term_id, 'estado_deuda');
+        }
+    
+        $deuda_post = get_post($deuda_id);
+        $divisa = get_post_meta($deuda_id, '_divisa', true) ?: 'USD';
+        $action_string = sprintf('Registró un abono de %s %.2f para la deuda "%s". Restante: %s %.2f.', $divisa, $abono_monto, esc_html($deuda_post->post_title), $divisa, $restante);
+        Flowtax_Activity_Log::log($action_string, $deuda_id, 'deuda');
+        
+        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Pago actualizado con éxito.']));
+    }
+
+    public static function handle_get_online_users() {
+        self::check_permissions();
+        $online_users = Flowtax_User_Presence::get_online_users();
+        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['users' => $online_users]));
+    }
     
     public static function handle_send_reminder() {
         self::check_permissions();
-        // CORRECCIÓN: Se usó 'deuda_id' para coincidir con lo que envía el JavaScript.
         $deuda_id = isset($_POST['deuda_id']) ? intval($_POST['deuda_id']) : 0;
         $method = isset($_POST['method']) ? sanitize_key($_POST['method']) : 'all';
 
@@ -53,7 +101,6 @@ class Flowtax_Ajax_Handler {
             return;
         }
         
-        // CORRECCIÓN: Se restauró la lógica funcional que es compatible con la clase Flowtax_Reminders.
         $result = Flowtax_Reminders::send_reminder($deuda_id, $method);
         
         if ($result['success']) {
@@ -186,7 +233,6 @@ class Flowtax_Ajax_Handler {
             return isset($doc['id']) && intval($doc['id']) !== $attachment_id;
         });
     
-        // CORRECCIÓN: Se agregó array_values para reindexar el array y evitar que se convierta en un objeto JSON.
         $updated_documents = array_values($updated_documents);
 
         $doc_name = basename(get_attached_file($attachment_id));
@@ -257,7 +303,6 @@ class Flowtax_Ajax_Handler {
         $all_meta = get_post_meta($post_id);
         $caso_data['meta'] = $all_meta;
 
-        // CORRECCIÓN: Se agregó la sanitización de los metadatos JSON para asegurar que el frontend siempre reciba un formato válido.
         $docs_array = self::get_json_meta($post_id, '_documentos_adjuntos');
         $notes_array = self::get_json_meta($post_id, '_historial_notas');
 
@@ -289,42 +334,55 @@ class Flowtax_Ajax_Handler {
         $cliente_data = self::format_post_data($cliente_post);
         $cliente_data['meta'] = get_post_meta($cliente_id);
     
-        $casos_e_deudas = [];
-        $post_types = ['impuestos', 'peticion_familiar', 'ciudadania', 'renovacion_residencia', 'traduccion', 'deuda'];
+        $casos = [];
+        $deudas = [];
         $case_ids = [];
     
-        foreach ($post_types as $pt) {
-            $query = new WP_Query(['post_type' => $pt, 'posts_per_page' => -1, 'meta_key' => '_cliente_id', 'meta_value' => $cliente_id]);
-            if ($query->have_posts()) {
-                foreach($query->posts as $p) {
-                    $casos_e_deudas[] = self::format_post_data($p);
-                    $case_ids[] = $p->ID;
-                }
+        $query_casos = new WP_Query([
+            'post_type' => ['impuestos', 'peticion_familiar', 'ciudadania', 'renovacion_residencia', 'traduccion'],
+            'posts_per_page' => -1, 'meta_key' => '_cliente_id', 'meta_value' => $cliente_id
+        ]);
+        if ($query_casos->have_posts()) {
+            foreach($query_casos->posts as $p) {
+                $casos[] = self::format_post_data($p);
+                $case_ids[] = $p->ID;
             }
         }
-        usort($casos_e_deudas, function($a, $b) { return strtotime($b['fecha_raw']) - strtotime($a['fecha_raw']); });
+        usort($casos, function($a, $b) { return strtotime($b['fecha_raw']) - strtotime($a['fecha_raw']); });
 
-        $historial = [];
-        if (!empty($case_ids)) {
-            $log_query = new WP_Query([
-                'post_type' => 'flowtax_log', 'posts_per_page' => 10,
-                'meta_query' => [['key' => '_related_post_id', 'value' => $case_ids, 'compare' => 'IN']],
-                'orderby' => 'date', 'order'    => 'DESC'
-            ]);
-            if ($log_query->have_posts()) {
-                $historial = array_map('self::format_post_data', $log_query->posts);
+        $query_deudas = new WP_Query([
+            'post_type' => 'deuda',
+            'posts_per_page' => -1, 'meta_key' => '_cliente_id', 'meta_value' => $cliente_id
+        ]);
+         if ($query_deudas->have_posts()) {
+            foreach($query_deudas->posts as $p) {
+                $deudas[] = self::format_post_data($p);
+                $case_ids[] = $p->ID;
             }
         }
+        usort($deudas, function($a, $b) { return strtotime($b['fecha_raw']) - strtotime($a['fecha_raw']); });
     
-        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['cliente' => $cliente_data, 'casos' => $casos_e_deudas, 'historial' => $historial]));
+        wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['cliente' => $cliente_data, 'casos' => $casos, 'deudas' => $deudas]));
     }
     
     public static function handle_get_search_results() {
         self::check_permissions();
-        $search_term = sanitize_text_field($_POST['search_term']);
-        $post_type = sanitize_text_field($_POST['post_type']);
+        $search_term = isset($_POST['search_term']) ? sanitize_text_field($_POST['search_term']) : '';
+        $post_type = isset($_POST['post_type']) ? sanitize_text_field($_POST['post_type']) : '';
+        $status_filter = isset($_POST['status_filter']) ? sanitize_key($_POST['status_filter']) : '';
+
         $args = ['post_type' => explode(',', $post_type), 'posts_per_page' => -1, 's' => $search_term];
         
+        if (!empty($status_filter)) {
+            $args['tax_query'] = [
+                [
+                    'taxonomy' => 'estado_deuda',
+                    'field'    => 'slug',
+                    'terms'    => $status_filter,
+                ],
+            ];
+        }
+
         $query = new WP_Query($args);
         
         $results = [];
@@ -366,9 +424,13 @@ class Flowtax_Ajax_Handler {
         $action = isset($_POST['flowtax_action']) ? sanitize_key($_POST['flowtax_action']) : 'list';
         $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         
+        // Registrar actividad del usuario actual
+        $current_user_id = get_current_user_id();
+        $location_string = self::get_location_string($view, $action, $id);
+        Flowtax_User_Presence::update_user_activity($current_user_id, $location_string);
+
         ob_start();
         try {
-            // CORRECCIÓN: Lógica de enrutamiento reparada para encontrar los archivos de vista correctamente.
             $view_path = '';
             if ($action === 'perfil') {
                 $view_path = FLOWTAX_MS_PLUGIN_DIR . "views/view-cliente-perfil.php";
@@ -381,7 +443,6 @@ class Flowtax_Ajax_Handler {
             if (file_exists($view_path)) {
                 include $view_path;
             } else {
-                // Si la vista solicitada no existe, se muestra el dashboard para evitar errores.
                 Flowtax_Debugger::log("Error: La vista '{$view_path}' no fue encontrada.", 'Routing Error');
                 include FLOWTAX_MS_PLUGIN_DIR . 'views/view-dashboard.php';
             }
@@ -396,10 +457,40 @@ class Flowtax_Ajax_Handler {
         }
     }
     
+    private static function get_location_string($view, $action, $id) {
+        $view_name = ucfirst(str_replace('-', ' ', $view));
+        $location_string = "En {$view_name}"; // Default
+
+        if ($view === 'dashboard') return "En el Dashboard";
+        if ($view === 'actividad') return "Revisando el Registro de Actividad";
+        if ($view === 'supervision') return "En el Panel de Supervisión";
+
+        switch ($action) {
+            case 'list':
+                $location_string = "Viendo lista de {$view_name}";
+                break;
+            case 'create':
+                $location_string = "Creando nuevo registro en {$view_name}";
+                break;
+            case 'edit':
+                $post_title = $id > 0 ? '"' . get_the_title($id) . '"' : 'un registro';
+                $location_string = "Editando {$post_title}";
+                break;
+            case 'perfil':
+                $post_title = $id > 0 ? get_the_title($id) : 'un cliente';
+                $location_string = "Viendo perfil de {$post_title}";
+                break;
+            case 'manage':
+                $post_title = $id > 0 ? '"' . get_the_title($id) . '"' : 'un caso';
+                $location_string = "Gestionando {$post_title}";
+                break;
+        }
+        return $location_string;
+    }
+
     public static function handle_save_form() {
         self::check_permissions();
         
-        // La lógica para autogenerar el título del post se mantiene
         $post_type = $_POST['post_type'] ?? '';
         if (in_array($post_type, ['peticion_familiar', 'ciudadania', 'renovacion_residencia', 'impuestos', 'traduccion'])) {
             if (!empty($_POST['cliente_id'])) {
@@ -449,6 +540,10 @@ class Flowtax_Ajax_Handler {
         }
         
         $new_post_id = $result;
+
+        if (!$is_update && $post_type === 'deuda') {
+            $sanitized_data['monto_abonado'] = 0;
+        }
         
         $cpt_object = get_post_type_object($post_type);
         $cpt_name = $cpt_object ? strtolower($cpt_object->labels->singular_name) : 'registro';
@@ -542,10 +637,18 @@ class Flowtax_Ajax_Handler {
             $base_data['idioma_origen'] = get_post_meta($post_id, '_idioma_origen', true);
             $base_data['idioma_destino'] = get_post_meta($post_id, '_idioma_destino', true);
         } elseif ($post_type === 'deuda') {
-            $base_data['monto_deuda'] = get_post_meta($post_id, '_monto_deuda', true);
+            $monto_deuda = (float) get_post_meta($post_id, '_monto_deuda', true);
+            $monto_abonado = (float) get_post_meta($post_id, '_monto_abonado', true);
+        
+            $base_data['monto_deuda'] = $monto_deuda;
+            $base_data['monto_abonado'] = $monto_abonado;
+            $base_data['monto_restante'] = $monto_deuda - $monto_abonado;
             $base_data['fecha_vencimiento'] = get_post_meta($post_id, '_fecha_vencimiento', true);
+            $base_data['divisa'] = get_post_meta($post_id, '_divisa', true) ?: 'USD';
         }
 
         return $base_data;
     }
 }
+
+

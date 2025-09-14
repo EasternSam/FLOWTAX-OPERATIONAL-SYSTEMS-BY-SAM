@@ -5,6 +5,18 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentView = null;
     let searchDebounce = null;
     let supervisionInterval = null;
+    let userPresenceInterval = null;
+
+    const formatCurrency = (amount, currency = 'USD') => {
+        const num = parseFloat(amount) || 0;
+        const options = {
+            style: 'currency',
+            currency: currency,
+            currencyDisplay: 'narrowSymbol'
+        };
+        const prefix = currency === 'USD' ? 'USD$ ' : 'RD$ ';
+        return prefix + new Intl.NumberFormat('en-US', options).format(num).replace('$', '');
+    };
 
     const Debug = {
         enabled: window.flowtax_ajax?.debug_mode || false,
@@ -28,6 +40,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.initNotifications();
                 this.initWatchmanMode();
                 this.initReminderModal();
+                this.initPaymentModal();
+                this.initUserPresence();
             }
             window.addEventListener('popstate', this.handlePopState.bind(this));
             document.body.addEventListener('click', this.handleGlobalClick.bind(this));
@@ -40,6 +54,141 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         
+        initPaymentModal() {
+            const modal = document.getElementById('payment-modal');
+            if (!modal || modal.dataset.initialized) return;
+            modal.dataset.initialized = 'true';
+        
+            const form = modal.querySelector('#payment-form');
+            const montoInput = modal.querySelector('#payment-modal-monto');
+        
+            modal.querySelector('#close-payment-modal').addEventListener('click', () => this.togglePaymentModal(false));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.togglePaymentModal(false);
+            });
+            
+            montoInput.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/[^0-9.]/g, '');
+                const parts = value.split('.');
+                if (parts.length > 2) {
+                    value = parts[0] + '.' + parts.slice(1).join('');
+                }
+                if (parts[1] && parts[1].length > 2) {
+                    value = parts[0] + '.' + parts[1].substring(0, 2);
+                }
+                e.target.value = value;
+            });
+        
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const deudaId = form.querySelector('#payment-modal-deuda-id').value;
+                const montoAbono = montoInput.value;
+                this.handleUpdatePayment(deudaId, montoAbono);
+            });
+        },
+
+        initUserPresence() {
+            this.updateOnlineUsersList();
+            userPresenceInterval = setInterval(() => this.updateOnlineUsersList(), 20000); // Actualiza cada 20 segundos
+        },
+
+        async updateOnlineUsersList() {
+            const container = document.getElementById('online-users-container');
+            if (!container) {
+                if(userPresenceInterval) clearInterval(userPresenceInterval);
+                return;
+            }
+            try {
+                const params = new URLSearchParams({ action: 'flowtax_get_online_users', nonce: flowtax_ajax.nonce });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                if (result.success) {
+                    this.renderOnlineUsers(result.data.users);
+                }
+            } catch (error) {
+                Debug.log('Error fetching online users', 'User Presence');
+            }
+        },
+
+        renderOnlineUsers(users) {
+            const container = document.getElementById('online-users-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            users.forEach(user => {
+                const userLink = document.createElement('a');
+                userLink.href = '#';
+                userLink.className = 'online-user-avatar';
+                userLink.dataset.spaLink = true;
+                userLink.dataset.view = 'actividad';
+                userLink.dataset.id = user.user_id;
+                userLink.title = `${user.display_name} - ${user.location}`;
+
+                const userImg = document.createElement('img');
+                userImg.src = user.avatar_url;
+                userImg.alt = user.display_name;
+
+                userLink.appendChild(userImg);
+                container.appendChild(userLink);
+            });
+        },
+
+        async handleUpdatePayment(deudaId, montoAbono) {
+            const modal = document.getElementById('payment-modal');
+            const submitButton = modal.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Registrando...`;
+            submitButton.disabled = true;
+        
+            try {
+                const params = new URLSearchParams({
+                    action: 'flowtax_update_payment',
+                    nonce: flowtax_ajax.nonce,
+                    deuda_id: deudaId,
+                    monto_abono: montoAbono
+                });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                Debug.renderBackendLogs(result.debug_logs);
+                
+                if (!result.success) throw new Error(result.data.message || 'Error al actualizar el pago.');
+        
+                this.showNotification(result.data.message, 'success');
+                this.togglePaymentModal(false);
+                if (currentView === 'clientes') {
+                    this.loadClientePerfil(document.getElementById('cliente-perfil-view').dataset.clienteId);
+                } else {
+                    this.handleSearch(document.querySelector('input[data-search-input]'));
+                }
+        
+            } catch (error) {
+                this.showNotification(error.message, 'error');
+            } finally {
+                submitButton.innerHTML = originalButtonText;
+                submitButton.disabled = false;
+            }
+        },
+
+        togglePaymentModal(show, deuda = null) {
+            const modal = document.getElementById('payment-modal');
+            if (show && deuda) {
+                modal.querySelector('#payment-modal-total').textContent = formatCurrency(deuda.monto_deuda, deuda.divisa);
+                modal.querySelector('#payment-modal-restante').textContent = formatCurrency(deuda.monto_restante, deuda.divisa);
+                modal.querySelector('#payment-modal-deuda-id').value = deuda.ID;
+                modal.querySelector('#payment-modal-monto').value = '';
+                
+                const currencyLabel = modal.querySelector('#payment-modal-currency-label');
+                currencyLabel.textContent = `Monto a abonar (${deuda.divisa})*`;
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => modal.querySelector('#payment-modal-monto').focus(), 100);
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        },
+
         initReminderModal() {
             const modal = document.getElementById('reminder-modal');
             if (!modal || modal.dataset.initialized) return;
@@ -580,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         renderClientePerfil(data) {
-            const { cliente, casos, historial } = data;
+            const { cliente, casos, deudas } = data;
             
             document.getElementById('cliente-nombre-header').textContent = cliente.title;
             const iniciales = cliente.title.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
@@ -595,12 +744,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 <li class="flex items-start"><i class="fas fa-id-card fa-fw w-6 text-slate-400 pt-1"></i><div><span class="text-xs text-slate-500">Tax ID</span><p class="font-medium text-slate-700">${getMeta('tax_id') || 'No especificado'}</p></div></li>
             `;
 
-            const infoDireccionContainer = document.getElementById('info-direccion');
-            infoDireccionContainer.innerHTML = `
-                <div><span class="text-xs text-slate-500">Dirección</span><p class="font-medium text-slate-700">${getMeta('direccion') || 'No especificada'}</p></div>
-                <div class="mt-3"><span class="text-xs text-slate-500">Ciudad / Estado / Postal</span><p class="font-medium text-slate-700">${[getMeta('ciudad'), getMeta('estado_provincia'), getMeta('codigo_postal')].filter(Boolean).join(', ') || 'No especificada'}</p></div>
-            `;
-
             const casosContainer = document.getElementById('casos-asociados-lista');
             const casoTemplate = document.getElementById('caso-item-template');
             casosContainer.innerHTML = '';
@@ -609,10 +752,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 const casoFragment = document.createDocumentFragment();
                 casos.forEach(caso => {
                     const clone = casoTemplate.content.cloneNode(true);
-                    const link = clone.querySelector('a');
-                    link.dataset.view = caso.view_slug;
-                    link.dataset.action = (caso.post_type === 'deuda') ? 'edit' : 'manage';
-                    link.dataset.id = caso.ID;
+                    const link = clone.querySelector('.caso-item');
+                    if (link) {
+                        link.setAttribute('data-view', caso.view_slug);
+                        link.setAttribute('data-action', 'manage');
+                        link.setAttribute('data-id', caso.ID);
+                        link.setAttribute('data-spa-link', 'true'); // <-- The fix is here
+                    }
                     clone.querySelector('.font-semibold').textContent = caso.title;
                     clone.querySelector('.text-xs.text-slate-500').textContent = caso.singular_name;
                     clone.querySelector('.text-xs.text-slate-400').textContent = caso.fecha;
@@ -626,30 +772,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 casosContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-folder-open fa-2x mb-3 text-slate-400"></i><p>No hay casos asociados.</p></div>';
             }
 
-            const historialContainer = document.getElementById('historial-cliente-lista');
-            const historialTemplate = document.getElementById('historial-item-template');
-            historialContainer.innerHTML = '';
-             if (historial.length > 0) {
-                const historialFragment = document.createDocumentFragment();
-                const iconMap = { 'creó': 'fa-plus', 'actualizó': 'fa-pencil-alt', 'eliminó': 'fa-trash', 'subió': 'fa-upload', 'añadió': 'fa-comment-dots' };
+            const deudasContainer = document.getElementById('deudas-asociadas-lista');
+            const deudaTemplate = document.getElementById('deuda-item-template');
+            deudasContainer.innerHTML = '';
 
-                historial.forEach(log => {
-                    const clone = historialTemplate.content.cloneNode(true);
-                    const iconClass = Object.keys(iconMap).find(key => log.title.toLowerCase().includes(key)) || 'fa-history';
-                    clone.querySelector('.historial-icon').classList.add(iconMap[iconClass] || 'fa-history');
-                    clone.querySelector('.historial-texto').innerHTML = log.title;
-                    clone.querySelector('.historial-autor').textContent = log.author;
-                    clone.querySelector('.historial-fecha').textContent = log.time_ago;
-                    historialFragment.appendChild(clone);
+            if (deudas.length > 0) {
+                const deudaFragment = document.createDocumentFragment();
+                deudas.forEach(deuda => {
+                    const clone = deudaTemplate.content.cloneNode(true);
+                    clone.querySelector('.font-semibold').textContent = deuda.title;
+                    clone.querySelector('.text-xs.text-slate-400').textContent = `Vence: ${deuda.fecha_vencimiento ? new Date(deuda.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}`;
+                    
+                    const statusBadge = clone.querySelector('.status-badge');
+                    statusBadge.textContent = deuda.estado;
+                    statusBadge.className += ` ${deuda.estado_color}`;
+
+                    clone.querySelector('.balance-restante').textContent = formatCurrency(deuda.monto_restante, deuda.divisa);
+                    clone.querySelector('.balance-total').textContent = formatCurrency(deuda.monto_deuda, deuda.divisa);
+                    
+                    const paymentButton = clone.querySelector('.add-payment-btn');
+                    paymentButton.dataset.addPaymentId = deuda.ID;
+                    paymentButton.dataset.montoDeuda = deuda.monto_deuda;
+                    paymentButton.dataset.montoRestante = deuda.monto_restante;
+                    paymentButton.dataset.divisa = deuda.divisa;
+
+                    const editLink = clone.querySelector('.edit-deuda-btn');
+                    editLink.setAttribute('data-spa-link', 'true');
+                    editLink.setAttribute('data-view', 'cuentas-por-cobrar');
+                    editLink.setAttribute('data-action', 'edit');
+                    editLink.setAttribute('data-id', deuda.ID);
+
+                    deudaFragment.appendChild(clone);
                 });
-                 const ul = document.createElement('ul');
-                 ul.className = "-mb-8";
-                 ul.appendChild(historialFragment);
-                 historialContainer.appendChild(ul);
+                deudasContainer.appendChild(deudaFragment);
             } else {
-                historialContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-history fa-2x mb-3 text-slate-400"></i><p>No hay historial de actividad.</p></div>';
+                deudasContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-file-invoice-dollar fa-2x mb-3 text-slate-400"></i><p>No hay deudas registradas.</p></div>';
             }
-            
+
             document.getElementById('perfil-content-area').classList.remove('opacity-0');
         },
 
@@ -669,7 +828,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const link = event.target.closest('[data-spa-link]');
             if (link) {
                 event.preventDefault();
-                const { view, action = 'list', id = 0 } = link.dataset;
+                // Using getAttribute for robustness, to match the change in renderClientePerfil.
+                const view = link.getAttribute('data-view');
+                const action = link.getAttribute('data-action') || 'list';
+                const id = link.getAttribute('data-id') || 0;
+
                 this.loadView(view, action, id);
                 return;
             }
@@ -686,6 +849,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 event.preventDefault(); 
                 this.toggleReminderModal(true, reminderButton.dataset.sendReminderId);
                 return; 
+            }
+
+            const paymentButton = event.target.closest('[data-add-payment-id]');
+            if (paymentButton) {
+                event.preventDefault();
+                const deudaData = {
+                    ID: paymentButton.dataset.addPaymentId,
+                    monto_deuda: paymentButton.dataset.montoDeuda,
+                    monto_restante: paymentButton.dataset.montoRestante,
+                    divisa: paymentButton.dataset.divisa
+                };
+                this.togglePaymentModal(true, deudaData);
+                return;
+            }
+
+            const statusFilterButton = event.target.closest('[data-status-filter]');
+            if(statusFilterButton) {
+                document.querySelectorAll('[data-status-filter]').forEach(btn => btn.classList.remove('active'));
+                statusFilterButton.classList.add('active');
+                this.handleSearch(document.querySelector('input[data-search-input]'));
+                return;
             }
 
             const deleteDocButton = event.target.closest('button.delete-doc-btn');
@@ -826,16 +1010,23 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         
         async handleSearch(searchInput) {
+            if (!searchInput) return;
+            
             const searchTerm = searchInput.value;
             const postType = searchInput.dataset.postType;
             const tableBody = document.querySelector('#data-table-body');
-            
-            if (!searchInput) return;
+            const statusFilter = document.querySelector('[data-status-filter].active')?.dataset.statusFilter || '';
             
             tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>`;
 
             try {
-                const params = new URLSearchParams({ action: 'flowtax_get_search_results', nonce: flowtax_ajax.nonce, search_term: searchTerm, post_type: postType });
+                const params = new URLSearchParams({ 
+                    action: 'flowtax_get_search_results', 
+                    nonce: flowtax_ajax.nonce, 
+                    search_term: searchTerm, 
+                    post_type: postType,
+                    status_filter: statusFilter 
+                });
                 const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
                 const result = await response.json();
                 Debug.renderBackendLogs(result.data.debug_logs);
@@ -951,10 +1142,21 @@ document.addEventListener('DOMContentLoaded', function () {
                         break;
 
                     case 'deuda':
-                        const monto = parseFloat(item.monto_deuda || 0);
+                        const montoDeuda = parseFloat(item.monto_deuda || 0);
+                        const montoRestante = parseFloat(item.monto_restante || 0);
                         const fechaVenc = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
-                        rowContent = `<td data-label="Concepto"><p class="font-semibold text-slate-800">${item.title}</p><p class="text-xs text-slate-500">${item.cliente_nombre}</p></td><td data-label="Monto" class="font-semibold text-slate-700">$${monto.toFixed(2)}</td><td data-label="Vencimiento">${fechaVenc}</td><td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
-                        actionButtons = `<button data-send-reminder-id="${item.ID}" class="btn-icon text-sky-500" title="Enviar Recordatorio"><i class="fas fa-paper-plane"></i></button><a href="#" data-spa-link data-view="${item.view_slug}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a><button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>`;
+                        
+                        rowContent = `
+                            <td data-label="Concepto"><p class="font-semibold text-slate-800">${item.title}</p><p class="text-xs text-slate-500">${item.cliente_nombre}</p></td>
+                            <td data-label="Balance"><p class="font-semibold text-slate-700">${formatCurrency(montoRestante, item.divisa)}</p><p class="text-xs text-slate-500">de ${formatCurrency(montoDeuda, item.divisa)}</p></td>
+                            <td data-label="Vencimiento">${fechaVenc}</td>
+                            <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
+                        
+                        actionButtons = `
+                            <button data-add-payment-id="${item.ID}" data-monto-deuda="${montoDeuda}" data-monto-restante="${montoRestante}" data-divisa="${item.divisa}" class="btn-icon text-green-500" title="Registrar Pago"><i class="fas fa-dollar-sign"></i></button>
+                            <button data-send-reminder-id="${item.ID}" class="btn-icon text-sky-500" title="Enviar Recordatorio"><i class="fas fa-paper-plane"></i></button>
+                            <a href="#" data-spa-link data-view="${item.view_slug}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a>
+                            <button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>`;
                         break;
                     
                     default:
@@ -971,4 +1173,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     App.init();
 });
+
 

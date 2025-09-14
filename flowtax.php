@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional. Ahora funciona con un shortcode.
- * Version:           8.0.0
+ * Version:           8.1.0
  * Author:            Samuel Diaz Pilier
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -20,7 +20,7 @@ define('FLOWTAX_DEBUG_MODE', true);
 
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '8.0.0';
+    const VERSION = '8.1.0';
     private static $instance;
     private static $is_spa_page = false;
 
@@ -50,6 +50,7 @@ final class Flow_Tax_Multiservices_Advanced {
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-validator.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-activity-log.php';
         require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-reminders.php';
+        require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-user-presence.php';
 
         if (FLOWTAX_DEBUG_MODE && file_exists(FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php')) {
             require_once FLOWTAX_MS_PLUGIN_DIR . 'includes/class-flowtax-debugger.php';
@@ -260,6 +261,9 @@ final class Flow_Tax_Multiservices_Advanced {
                             <i class="fas fa-bars fa-lg"></i>
                         </button>
                          <div class="flex items-center ml-auto">
+                            <div id="online-users-container" class="flex items-center space-x-[-10px] mr-4 pr-2">
+                                <!-- Los avatares de usuarios en línea se insertarán aquí -->
+                            </div>
                             <div class="relative mr-4" id="notification-bell-container">
                                 <button id="notification-bell-btn" class="text-slate-500 hover:text-slate-800 h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
                                     <i class="fas fa-bell"></i>
@@ -320,6 +324,32 @@ final class Flow_Tax_Multiservices_Advanced {
                     </div>
                 </div>
             </div>
+            
+            <div id="payment-modal" class="fixed inset-0 bg-black/60 z-50 items-center justify-center p-4 hidden">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-sm">
+                    <header class="flex items-center justify-between p-4 border-b">
+                        <h3 class="font-semibold text-slate-800 text-lg">Registrar Pago/Abono</h3>
+                        <button id="close-payment-modal" class="text-slate-400 hover:text-red-500"><i class="fas fa-times fa-lg"></i></button>
+                    </header>
+                    <div class="p-6">
+                        <div class="text-center mb-4">
+                            <p class="text-sm text-slate-500">Deuda Total</p>
+                            <p id="payment-modal-total" class="text-3xl font-bold text-slate-800">USD$ 0.00</p>
+                             <p class="text-sm text-slate-500 mt-2">Restante: <span id="payment-modal-restante" class="font-semibold">USD$ 0.00</span></p>
+                        </div>
+                        <form id="payment-form">
+                            <input type="hidden" id="payment-modal-deuda-id" name="deuda_id">
+                            <div>
+                                <label for="payment-modal-monto" id="payment-modal-currency-label" class="form-label">Monto a abonar (USD)*</label>
+                                <input type="text" id="payment-modal-monto" name="monto_abono" class="form-input w-full text-center text-lg" placeholder="0.00" required>
+                            </div>
+                            <div class="mt-6">
+                                <button type="submit" class="w-full btn-primary"><i class="fas fa-check-circle mr-2"></i>Registrar Pago</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
         <?php
         return ob_get_clean();
@@ -327,4 +357,5 @@ final class Flow_Tax_Multiservices_Advanced {
 }
 
 Flow_Tax_Multiservices_Advanced::get_instance();
+
 

@@ -69,13 +69,14 @@ class Flowtax_CPTs {
 
         $estados_deuda = [
             'Pendiente' => 'bg-yellow-100 text-yellow-800',
+            'Abono' => 'bg-sky-100 text-sky-800',
             'Pagado' => 'bg-green-100 text-green-800',
             'Vencido' => 'bg-red-100 text-red-800',
             'Cancelado' => 'bg-gray-100 text-gray-800'
         ];
         foreach ($estados_deuda as $estado => $color_class) {
             if (!term_exists($estado, 'estado_deuda')) {
-                $term = wp_insert_term($estado, 'estado_deuda');
+                $term = wp_insert_term($estado, 'estado_deuda', ['slug' => sanitize_title($estado)]);
                 if (!is_wp_error($term)) {
                     add_term_meta($term['term_id'], 'color_class', $color_class, true);
                 }
