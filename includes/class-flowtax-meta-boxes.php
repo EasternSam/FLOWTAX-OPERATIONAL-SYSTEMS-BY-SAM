@@ -8,7 +8,7 @@ class Flowtax_Meta_Boxes {
     public static function save_meta_data($post_id, $data) {
         $meta_fields = [
             'cliente' => ['telefono', 'email', 'direccion', 'ciudad', 'estado_provincia', 'codigo_postal', 'tax_id'],
-            'deuda' => ['cliente_id', 'monto_deuda', 'fecha_vencimiento', 'link_pago'],
+            'deuda' => ['cliente_id', 'monto_deuda', 'estado_deuda', 'fecha_vencimiento', 'link_pago_provider'],
             'empleado' => ['cliente_id', 'salario', 'frecuencia_pago'],
             'nomina' => ['cliente_id', 'fecha_pago', 'monto_total'],
             'impuestos' => ['cliente_id', 'ano_fiscal', 'tipo_declaracion', 'ingresos_detalle', 'deducciones_detalle', 'reembolso_estimado', 'monto_adeudado', 'notas_preparador'],

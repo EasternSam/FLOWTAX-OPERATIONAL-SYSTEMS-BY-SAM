@@ -34,7 +34,7 @@ class Flowtax_Data_Validator {
                 if (empty($this->post_data['post_title'])) $this->errors['post_title'] = 'El concepto de la deuda es obligatorio.';
                 if (empty($this->post_data['cliente_id'])) $this->errors['cliente_id'] = 'Debes seleccionar un cliente.';
                 if (empty($this->post_data['monto_deuda']) || !is_numeric($this->post_data['monto_deuda'])) $this->errors['monto_deuda'] = 'El monto debe ser un número válido.';
-                if (empty($this->post_data['link_pago']) || !filter_var($this->post_data['link_pago'], FILTER_VALIDATE_URL)) $this->errors['link_pago'] = 'Debes seleccionar un link de pago válido.';
+                // CORRECCIÓN: Se eliminó la validación incorrecta del link de pago que esperaba una URL.
                 break;
 
             case 'impuestos':
@@ -109,4 +109,3 @@ class Flowtax_Data_Validator {
         return $this->sanitized_data;
     }
 }
-

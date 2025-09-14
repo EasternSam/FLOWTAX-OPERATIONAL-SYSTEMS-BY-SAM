@@ -2,6 +2,8 @@
 class Flowtax_CPTs {
     public static function init() {
         add_action('init', array(__CLASS__, 'register_all'));
+        // CORRECCIÓN: Aseguramos que los términos se creen si no existen en cada carga.
+        add_action('init', array(__CLASS__, 'insert_initial_terms'));
     }
 
     public static function register_all() {
@@ -81,4 +83,3 @@ class Flowtax_CPTs {
         }
     }
 }
-

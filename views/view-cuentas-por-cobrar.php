@@ -88,8 +88,8 @@ if ($action === 'list') {
                         </select>
                     </div>
                     <div>
-                        <label for="monto" class="form-label">Monto (USD)*</label>
-                        <input type="number" step="0.01" id="monto" name="monto" value="<?php echo $get_meta('monto'); ?>" class="form-input w-full" required>
+                        <label for="monto_deuda" class="form-label">Monto (USD)*</label>
+                        <input type="number" step="0.01" id="monto_deuda" name="monto_deuda" value="<?php echo $get_meta('monto_deuda'); ?>" class="form-input w-full" required>
                     </div>
                     <div>
                         <label for="fecha_vencimiento" class="form-label">Fecha de Vencimiento</label>
@@ -106,10 +106,10 @@ if ($action === 'list') {
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="payment_link_provider" class="form-label">Link de Pago*</label>
-                        <select id="payment_link_provider" name="payment_link_provider" class="form-input w-full" required>
-                            <option value="clover" <?php selected($get_meta('payment_link_provider'), 'clover'); ?>>Clover</option>
-                            <option value="square" <?php selected($get_meta('payment_link_provider'), 'square'); ?>>Square</option>
+                        <label for="link_pago_provider" class="form-label">Link de Pago*</label>
+                        <select id="link_pago_provider" name="link_pago_provider" class="form-input w-full" required>
+                            <option value="clover" <?php selected($get_meta('link_pago_provider'), 'clover'); ?>>Clover</option>
+                            <option value="square" <?php selected($get_meta('link_pago_provider'), 'square'); ?>>Square</option>
                         </select>
                     </div>
                 </div>
@@ -119,4 +119,3 @@ if ($action === 'list') {
 <?php
 }
 ?>
-
