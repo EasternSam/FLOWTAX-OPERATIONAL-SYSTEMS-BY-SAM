@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const notificationArea = document.getElementById('notification-area');
     let currentView = null;
     let searchDebounce = null;
-    let supervisionInterval = null; // Para controlar el refresco automático
+    let supervisionInterval = null;
 
     const Debug = {
         enabled: window.flowtax_ajax?.debug_mode || false,
@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.initMobileMenu();
                 this.initNotifications();
                 this.initWatchmanMode();
+                this.initReminderModal();
             }
             window.addEventListener('popstate', this.handlePopState.bind(this));
             document.body.addEventListener('click', this.handleGlobalClick.bind(this));
@@ -39,13 +40,77 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         
+        initReminderModal() {
+            const modal = document.getElementById('reminder-modal');
+            if (!modal || modal.dataset.initialized) return;
+            modal.dataset.initialized = 'true';
+            
+            modal.querySelector('#close-reminder-modal').addEventListener('click', () => this.toggleReminderModal(false));
+            modal.addEventListener('click', (e) => {
+                if (e.target.closest('button[data-reminder-method]')) {
+                    const method = e.target.closest('button[data-reminder-method]').dataset.reminderMethod;
+                    const deudaId = modal.dataset.deudaId;
+                    this.sendReminder(deudaId, method);
+                    this.toggleReminderModal(false);
+                }
+                if (e.target === modal) {
+                    this.toggleReminderModal(false);
+                }
+            });
+        },
+
+        toggleReminderModal(show, deudaId = null) {
+            const modal = document.getElementById('reminder-modal');
+            if (show && deudaId) {
+                modal.dataset.deudaId = deudaId;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.dataset.deudaId = '';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        },
+
+        async sendReminder(deudaId, method) {
+            this.showNotification('Enviando recordatorio...', 'warning');
+            try {
+                const params = new URLSearchParams({ action: 'flowtax_send_reminder', nonce: flowtax_ajax.nonce, deuda_id: deudaId, method });
+                const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: params });
+                const result = await response.json();
+                Debug.renderBackendLogs(result.debug_logs);
+                
+                if (!result.success) throw new Error(result.data.message || 'Error desconocido.');
+                
+                const reminderResults = result.data.results;
+
+                if (reminderResults.whatsapp && reminderResults.whatsapp.success) {
+                    if (reminderResults.whatsapp.method === 'manual') {
+                        window.open(reminderResults.whatsapp.url, '_blank');
+                        this.showNotification('Link de WhatsApp generado.', 'success');
+                    } else {
+                        this.showNotification(reminderResults.whatsapp.message, 'success');
+                    }
+                } else if (reminderResults.whatsapp) {
+                    this.showNotification(reminderResults.whatsapp.message, 'error');
+                }
+                if (reminderResults.email && reminderResults.email.success) {
+                     this.showNotification(reminderResults.email.message, 'success');
+                } else if (reminderResults.email) {
+                    this.showNotification(reminderResults.email.message, 'error');
+                }
+
+            } catch (error) {
+                this.showNotification(`Error: ${error.message}`, 'error');
+            }
+        },
+        
         initDocViewer() {
             const modal = document.getElementById('doc-viewer-modal');
             if (!modal || modal.dataset.viewerInitialized) return;
             modal.dataset.viewerInitialized = 'true';
 
             const closeBtn = document.getElementById('close-viewer-btn');
-            const titleEl = document.getElementById('viewer-title');
             const imageContainer = document.getElementById('image-viewer-container');
             const iframe = document.getElementById('doc-viewer-iframe');
             const imgEl = document.getElementById('image-viewer-img');
@@ -100,8 +165,10 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             imageContainer.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                updateZoom(currentZoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+                if(e.target === imgEl) {
+                    e.preventDefault();
+                    updateZoom(currentZoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+                }
             });
             
             closeBtn.addEventListener('click', closeViewer);
@@ -319,7 +386,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (action === 'manage') this.loadCasoManage(id);
                     if (view === 'supervision') this.initSupervisionView();
                     
-                    // Si la vista es una lista, cargar los datos de la tabla dinámicamente
                     if(action === 'list' && document.getElementById('data-table-body')){
                         this.handleSearch(document.querySelector('input[data-search-input]'));
                     }
@@ -414,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const clienteInfoContainer = document.getElementById('info-cliente');
             if (cliente) {
                 clienteInfoContainer.innerHTML = `
-                    <p><strong class="font-medium text-slate-500 w-24 inline-block">Nombre:</strong> <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${cliente.ID}" class="text-green-600 hover:underline font-semibold">${cliente.title}</a></p>
+                    <p><strong class="font-medium text-slate-500 w-24 inline-block">Nombre:</strong> <a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${cliente.ID}" class="text-blue-600 hover:underline font-semibold">${cliente.title}</a></p>
                     <p><strong class="font-medium text-slate-500 w-24 inline-block">Email:</strong> ${cliente.email || 'N/A'}</p>
                     <p><strong class="font-medium text-slate-500 w-24 inline-block">Teléfono:</strong> ${cliente.telefono || 'N/A'}</p>
                 `;
@@ -516,53 +582,25 @@ document.addEventListener('DOMContentLoaded', function () {
         renderClientePerfil(data) {
             const { cliente, casos, historial } = data;
             
-            // Renderizar Header
             document.getElementById('cliente-nombre-header').textContent = cliente.title;
             const iniciales = cliente.title.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
             document.getElementById('cliente-iniciales').textContent = iniciales;
 
             const getMeta = (key) => cliente.meta[`_${key}`]?.[0] || '';
             
-            // Renderizar Info de Contacto
             const infoContactoContainer = document.getElementById('info-contacto');
             infoContactoContainer.innerHTML = `
-                <li class="flex items-start">
-                    <i class="fas fa-envelope fa-fw w-6 text-slate-400 pt-1"></i>
-                    <div>
-                        <span class="text-xs text-slate-500">Email</span>
-                        <p class="font-medium text-slate-700">${getMeta('email') || 'No especificado'}</p>
-                    </div>
-                </li>
-                <li class="flex items-start">
-                    <i class="fas fa-phone fa-fw w-6 text-slate-400 pt-1"></i>
-                    <div>
-                        <span class="text-xs text-slate-500">Teléfono</span>
-                        <p class="font-medium text-slate-700">${getMeta('telefono') || 'No especificado'}</p>
-                    </div>
-                </li>
-                <li class="flex items-start">
-                    <i class="fas fa-id-card fa-fw w-6 text-slate-400 pt-1"></i>
-                    <div>
-                        <span class="text-xs text-slate-500">Tax ID</span>
-                        <p class="font-medium text-slate-700">${getMeta('tax_id') || 'No especificado'}</p>
-                    </div>
-                </li>
+                <li class="flex items-start"><i class="fas fa-envelope fa-fw w-6 text-slate-400 pt-1"></i><div><span class="text-xs text-slate-500">Email</span><p class="font-medium text-slate-700">${getMeta('email') || 'No especificado'}</p></div></li>
+                <li class="flex items-start"><i class="fas fa-phone fa-fw w-6 text-slate-400 pt-1"></i><div><span class="text-xs text-slate-500">Teléfono</span><p class="font-medium text-slate-700">${getMeta('telefono') || 'No especificado'}</p></div></li>
+                <li class="flex items-start"><i class="fas fa-id-card fa-fw w-6 text-slate-400 pt-1"></i><div><span class="text-xs text-slate-500">Tax ID</span><p class="font-medium text-slate-700">${getMeta('tax_id') || 'No especificado'}</p></div></li>
             `;
 
-            // Renderizar Dirección
             const infoDireccionContainer = document.getElementById('info-direccion');
             infoDireccionContainer.innerHTML = `
-                <div>
-                    <span class="text-xs text-slate-500">Dirección</span>
-                    <p class="font-medium text-slate-700">${getMeta('direccion') || 'No especificada'}</p>
-                </div>
-                <div class="mt-3">
-                    <span class="text-xs text-slate-500">Ciudad / Estado / Postal</span>
-                    <p class="font-medium text-slate-700">${[getMeta('ciudad'), getMeta('estado_provincia'), getMeta('codigo_postal')].filter(Boolean).join(', ') || 'No especificada'}</p>
-                </div>
+                <div><span class="text-xs text-slate-500">Dirección</span><p class="font-medium text-slate-700">${getMeta('direccion') || 'No especificada'}</p></div>
+                <div class="mt-3"><span class="text-xs text-slate-500">Ciudad / Estado / Postal</span><p class="font-medium text-slate-700">${[getMeta('ciudad'), getMeta('estado_provincia'), getMeta('codigo_postal')].filter(Boolean).join(', ') || 'No especificada'}</p></div>
             `;
 
-            // Renderizar Casos Asociados
             const casosContainer = document.getElementById('casos-asociados-lista');
             const casoTemplate = document.getElementById('caso-item-template');
             casosContainer.innerHTML = '';
@@ -573,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const clone = casoTemplate.content.cloneNode(true);
                     const link = clone.querySelector('a');
                     link.dataset.view = caso.view_slug;
-                    link.dataset.action = 'manage';
+                    link.dataset.action = (caso.post_type === 'deuda') ? 'edit' : 'manage';
                     link.dataset.id = caso.ID;
                     clone.querySelector('.font-semibold').textContent = caso.title;
                     clone.querySelector('.text-xs.text-slate-500').textContent = caso.singular_name;
@@ -588,7 +626,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 casosContainer.innerHTML = '<div class="text-center py-8 text-slate-500"><i class="fas fa-folder-open fa-2x mb-3 text-slate-400"></i><p>No hay casos asociados.</p></div>';
             }
 
-            // Renderizar Historial del Cliente
             const historialContainer = document.getElementById('historial-cliente-lista');
             const historialTemplate = document.getElementById('historial-item-template');
             historialContainer.innerHTML = '';
@@ -642,6 +679,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 event.preventDefault();
                 this.handleDeletePost(deleteButton.dataset.deleteId);
                 return;
+            }
+            
+            const reminderButton = event.target.closest('[data-send-reminder-id]');
+            if (reminderButton) { 
+                event.preventDefault(); 
+                this.toggleReminderModal(true, reminderButton.dataset.sendReminderId);
+                return; 
             }
 
             const deleteDocButton = event.target.closest('button.delete-doc-btn');
@@ -748,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 if (result.success) {
                     this.showNotification(result.data.message, 'success');
-                    this.loadView(result.data.redirect_view, 'manage', result.data.post_id);
+                    this.loadView(result.data.redirect_view, result.data.redirect_action || 'list', result.data.post_id);
                 } else {
                      this.showNotification(result.data.message || 'Error al guardar.', 'error');
                      if (result.data.errors) {
@@ -787,8 +831,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const tableBody = document.querySelector('#data-table-body');
             
             if (!searchInput) return;
-
-            if (searchTerm.length > 0 && searchTerm.length < 3) return;
             
             tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Buscando...</td></tr>`;
 
@@ -803,11 +845,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 Debug.log(error, 'Error HandleSearch');
                 this.showNotification('Error en la búsqueda.', 'error');
                 const colCount = tableBody.closest('table')?.querySelector('thead tr')?.childElementCount || 5;
-                tableBody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-16">
-                    <div class="text-red-500"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
-                    <h3 class="mt-2 text-lg font-semibold text-gray-800">Error al Cargar</h3>
-                    <p class="mt-1 text-sm text-gray-500">No se pudieron cargar los datos. Intenta de nuevo más tarde.</p>
-                </td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-16"><div class="text-red-500"><i class="fas fa-exclamation-triangle fa-2x"></i></div><h3 class="mt-2 text-lg font-semibold text-gray-800">Error al Cargar</h3><p class="mt-1 text-sm text-gray-500">No se pudieron cargar los datos.</p></td></tr>`;
             }
         },
 
@@ -822,6 +860,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 try {
                     const formData = new FormData(form);
+                    formData.append('action', 'flowtax_upload_document');
+                    formData.append('nonce', flowtax_ajax.nonce);
                     const response = await fetch(flowtax_ajax.ajax_url, { method: 'POST', body: formData });
                     const result = await response.json();
                     Debug.renderBackendLogs(result.data.debug_logs);
@@ -887,34 +927,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             const colCount = tableBody.closest('table').querySelector('thead tr').childElementCount;
-            const isSearching = searchTerm.length > 0;
-
+            
             if (items.length === 0) {
+                const isSearching = searchTerm.length > 0;
                 let emptyStateHtml = '';
                 if (isSearching) {
-                    emptyStateHtml = `<tr><td colspan="${colCount}">
-                        <div class="text-center py-16">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            <h3 class="mt-2 text-lg font-semibold text-gray-800">Sin resultados</h3>
-                            <p class="mt-1 text-sm text-gray-500">No se encontraron registros que coincidan con tu búsqueda.</p>
-                        </div>
-                    </td></tr>`;
+                    emptyStateHtml = `<tr><td colspan="${colCount}" class="text-center py-16"><h3 class="text-lg font-semibold text-gray-800">Sin resultados</h3><p class="mt-1 text-sm text-gray-500">No se encontraron registros.</p></div></td></tr>`;
                 } else {
-                     emptyStateHtml = `<tr><td colspan="${colCount}">
-                        <div class="text-center py-16">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                              <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                            </svg>
-                            <h3 class="mt-2 text-lg font-semibold text-gray-800">No hay ${currentView}</h3>
-                            <p class="mt-1 text-sm text-gray-500">Empieza por añadir tu primer registro.</p>
-                            <div class="mt-6">
-                              <a href="#" data-spa-link data-view="${currentView}" data-action="create" class="btn-primary">
-                                <i class="fas fa-plus mr-2"></i>
-                                Añadir
-                              </a>
-                            </div>
-                        </div>
-                    </td></tr>`;
+                     emptyStateHtml = `<tr><td colspan="${colCount}" class="text-center py-16"><h3 class="text-lg font-semibold text-gray-800">No hay registros</h3><p class="mt-1 text-sm text-gray-500">Empieza por añadir uno nuevo.</p><div class="mt-6"><a href="#" data-spa-link data-view="${currentView}" data-action="create" class="btn-primary"><i class="fas fa-plus mr-2"></i>Añadir Registro</a></div></td></tr>`;
                 }
                 tableBody.innerHTML = emptyStateHtml;
                 return;
@@ -922,49 +942,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const rowsHtml = items.map(item => {
                 let rowContent = '';
-                 switch(currentView) {
-                    case 'clientes':
-                         rowContent = `
-                            <td data-label="Nombre"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a></td>
-                            <td data-label="Email">${item.email || ''}</td>
-                            <td data-label="Teléfono">${item.telefono || ''}</td>
-                            <td data-label="Fecha Reg.">${item.fecha}</td>`;
+                let actionButtons = '';
+
+                switch(item.post_type) {
+                    case 'cliente':
+                        rowContent = `<td data-label="Nombre"><a href="#" data-spa-link data-view="clientes" data-action="perfil" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a></td><td data-label="Email">${item.email || ''}</td><td data-label="Teléfono">${item.telefono || ''}</td><td data-label="Fecha Reg.">${item.fecha}</td>`;
+                        actionButtons = `<a href="#" data-spa-link data-view="${item.view_slug}" data-action="perfil" data-id="${item.ID}" class="btn-icon" title="Ver Perfil"><i class="fas fa-eye"></i></a><a href="#" data-spa-link data-view="${item.view_slug}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a><button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>`;
                         break;
-                    case 'impuestos':
-                        rowContent = `
-                            <td data-label="Caso"><a href="#" data-spa-link data-view="impuestos" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
-                            <td data-label="Año Fiscal">${item.ano_fiscal || 'N/A'}</td>
-                            <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
-                            <td data-label="Fecha">${item.fecha}</td>`;
+
+                    case 'deuda':
+                        const monto = parseFloat(item.monto_deuda || 0);
+                        const fechaVenc = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+                        rowContent = `<td data-label="Concepto"><p class="font-semibold text-slate-800">${item.title}</p><p class="text-xs text-slate-500">${item.cliente_nombre}</p></td><td data-label="Monto" class="font-semibold text-slate-700">$${monto.toFixed(2)}</td><td data-label="Vencimiento">${fechaVenc}</td><td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>`;
+                        actionButtons = `<button data-send-reminder-id="${item.ID}" class="btn-icon text-sky-500" title="Enviar Recordatorio"><i class="fas fa-paper-plane"></i></button><a href="#" data-spa-link data-view="${item.view_slug}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a><button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>`;
                         break;
-                    case 'inmigracion':
-                        rowContent = `
-                            <td data-label="Tipo de Caso"><a href="#" data-spa-link data-view="inmigracion" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.singular_name}</p></td>
-                            <td data-label="Cliente">${item.cliente_nombre}</td>
-                            <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
-                            <td data-label="Fecha de Creación">${item.fecha}</td>`;
-                        break;
-                    case 'traducciones':
-                        rowContent = `
-                            <td data-label="Proyecto"><a href="#" data-spa-link data-view="traducciones" data-action="manage" data-id="${item.ID}" class="font-semibold text-green-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td>
-                            <td data-label="Idiomas">${item.idioma_origen || ''} → ${item.idioma_destino || ''}</td>
-                            <td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td>
-                            <td data-label="Fecha">${item.fecha}</td>`;
+                    
+                    default:
+                        rowContent = `<td data-label="Caso"><a href="#" data-spa-link data-view="${item.view_slug}" data-action="manage" data-id="${item.ID}" class="font-semibold text-blue-600 hover:underline">${item.title}</a><p class="text-sm text-slate-500">${item.cliente_nombre}</p></td><td data-label="Detalle">${item.ano_fiscal || item.singular_name}</td><td data-label="Estado"><span class="px-2 py-1 text-xs font-semibold rounded-full ${item.estado_color}">${item.estado}</span></td><td data-label="Fecha">${item.fecha}</td>`;
+                         actionButtons = `<a href="#" data-spa-link data-view="${item.view_slug}" data-action="manage" data-id="${item.ID}" class="btn-icon" title="Gestionar"><i class="fas fa-tasks"></i></a><a href="#" data-spa-link data-view="${item.view_slug}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a><button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>`;
                         break;
                 }
                 
-                let viewAction = (currentView === 'clientes') ? 'perfil' : 'manage';
-                let viewIcon = (currentView === 'clientes') ? 'fa-eye' : 'fa-tasks';
-
-                return `<tr class="hover:bg-slate-50">${rowContent}
-                    <td data-label="Acciones">
-                        <div class="flex justify-end items-center space-x-1">
-                            <a href="#" data-spa-link data-view="${currentView}" data-action="${viewAction}" data-id="${item.ID}" class="btn-icon" title="Gestionar"><i class="fas ${viewIcon}"></i></a>
-                            <a href="#" data-spa-link data-view="${currentView}" data-action="edit" data-id="${item.ID}" class="btn-icon" title="Editar"><i class="fas fa-edit"></i></a>
-                            <button data-delete-id="${item.ID}" class="btn-icon-danger" title="Eliminar"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>`;
+                return `<tr class="hover:bg-slate-50">${rowContent}<td data-label="Acciones"><div class="flex justify-end items-center space-x-3">${actionButtons}</div></td></tr>`;
             }).join('');
             tableBody.innerHTML = rowsHtml;
         }
@@ -972,6 +971,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
     App.init();
 });
-
-
 

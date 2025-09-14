@@ -94,3 +94,42 @@ input:checked ~ .dot {
 input:checked ~ .block {
   background-color: rgb(var(--color-primary));
 }
+
+/* Estilos para botones de acción en tablas */
+.btn-icon, .btn-icon-danger {
+    height: 2.75rem; /* 44px - Aumentado */
+    width: 2.75rem;  /* 44px - Aumentado */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem; /* rounded-lg - Aumentado */
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-icon i, .btn-icon-danger i {
+    font-size: 1.25rem; /* text-xl - Aumentado */
+}
+
+/* Default state and hover for generic icon buttons */
+.btn-icon {
+    color: #64748b; /* text-slate-500 */
+}
+.btn-icon:hover {
+    background-color: #e2e8f0; /* hover:bg-slate-200 */
+    color: #2563eb; /* hover:text-blue-600 */
+}
+
+/* State and hover for danger icon buttons */
+.btn-icon-danger {
+    color: #64748b; /* text-slate-500 */
+}
+.btn-icon-danger:hover {
+    background-color: #fee2e2; /* hover:bg-red-100 */
+    color: #ef4444; /* hover:text-red-500 */
+}
+
+/* Specific hover for the sky-colored reminder button (color is set inline via JS) */
+.btn-icon.text-sky-500:hover {
+    background-color: #e0f2fe; /* hover:bg-sky-100 */
+}
+

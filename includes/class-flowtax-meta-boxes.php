@@ -1,6 +1,4 @@
 <?php
-// Esta clase ahora solo contiene la l¨®gica de guardado centralizada.
-// El renderizado de los formularios se mover¨¢ a los archivos de vista (plantillas).
 class Flowtax_Meta_Boxes {
 
     public static function init() {
@@ -10,6 +8,7 @@ class Flowtax_Meta_Boxes {
     public static function save_meta_data($post_id, $data) {
         $meta_fields = [
             'cliente' => ['telefono', 'email', 'direccion', 'ciudad', 'estado_provincia', 'codigo_postal', 'tax_id'],
+            'deuda' => ['cliente_id', 'monto_deuda', 'fecha_vencimiento', 'link_pago'],
             'empleado' => ['cliente_id', 'salario', 'frecuencia_pago'],
             'nomina' => ['cliente_id', 'fecha_pago', 'monto_total'],
             'impuestos' => ['cliente_id', 'ano_fiscal', 'tipo_declaracion', 'ingresos_detalle', 'deducciones_detalle', 'reembolso_estimado', 'monto_adeudado', 'notas_preparador'],
@@ -31,3 +30,4 @@ class Flowtax_Meta_Boxes {
         }
     }
 }
+

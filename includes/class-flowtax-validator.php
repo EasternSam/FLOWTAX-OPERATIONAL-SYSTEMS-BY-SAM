@@ -29,6 +29,13 @@ class Flowtax_Data_Validator {
                     $this->errors['telefono'] = 'El número de teléfono es obligatorio.';
                 }
                 break;
+            
+            case 'deuda':
+                if (empty($this->post_data['post_title'])) $this->errors['post_title'] = 'El concepto de la deuda es obligatorio.';
+                if (empty($this->post_data['cliente_id'])) $this->errors['cliente_id'] = 'Debes seleccionar un cliente.';
+                if (empty($this->post_data['monto_deuda']) || !is_numeric($this->post_data['monto_deuda'])) $this->errors['monto_deuda'] = 'El monto debe ser un número válido.';
+                if (empty($this->post_data['link_pago']) || !filter_var($this->post_data['link_pago'], FILTER_VALIDATE_URL)) $this->errors['link_pago'] = 'Debes seleccionar un link de pago válido.';
+                break;
 
             case 'impuestos':
                 if (empty($this->post_data['cliente_id'])) {
