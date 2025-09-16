@@ -72,10 +72,6 @@ if ($deudas_pendientes_query->have_posts()) {
 }
 wp_reset_postdata();
 
-// Formatear la fecha en español
-setlocale(LC_TIME, 'es_ES.UTF-8', 'Spanish');
-$today_date = strftime('%A, %e de %B de %Y');
-
 // Saludo dinámico según la hora del día (basado en la zona horaria de WordPress)
 $current_hour = (int) current_time('H');
 $saludo = 'Buen día';
@@ -86,7 +82,7 @@ if ($current_hour >= 12 && $current_hour < 19) {
 }
 
 ?>
-<div class="p-4 sm:p-6 lg:p-8">
+<div class="p-4 sm:p-6 lg:p-8 animate-fade-in-up">
     <!-- Header -->
     <header class="mb-8">
         <h1 class="text-3xl font-bold text-slate-800"><?php echo esc_html($saludo); ?>, <?php echo esc_html($current_user->display_name); ?>!</h1>
@@ -98,31 +94,28 @@ if ($current_hour >= 12 && $current_hour < 19) {
         <?php
         $kpis = [
             ['title' => 'Clientes Activos', 'count' => $counts['clientes'], 'icon' => 'fa-solid fa-users', 'color' => 'blue', 'view' => 'clientes'],
-            ['title' => 'Casos de Impuestos', 'count' => $counts['impuestos'], 'icon' => 'fa-solid fa-calculator', 'color' => 'indigo', 'view' => 'impuestos'],
-            ['title' => 'Casos de Inmigración', 'count' => $counts['inmigracion'], 'icon' => 'fa-solid fa-flag-usa', 'color' => 'sky', 'view' => 'inmigracion'],
+            ['title' => 'Casos de Impuestos', 'count' => $counts['impuestos'], 'icon' => 'fa-solid fa-calculator', 'color' => 'violet', 'view' => 'impuestos'],
+            ['title' => 'Casos de Inmigración', 'count' => $counts['inmigracion'], 'icon' => 'fa-solid fa-flag-usa', 'color' => 'green', 'view' => 'inmigracion'],
             ['title' => 'Traducciones', 'count' => $counts['traducciones'], 'icon' => 'fa-solid fa-language', 'color' => 'amber', 'view' => 'traducciones']
         ];
         foreach ($kpis as $kpi) {
             $colors = [
-                'blue' => ['text' => 'text-blue-600', 'bg' => 'bg-blue-100'],
-                'indigo' => ['text' => 'text-indigo-600', 'bg' => 'bg-indigo-100'],
-                'sky' => ['text' => 'text-sky-600', 'bg' => 'bg-sky-100'],
-                'amber' => ['text' => 'text-amber-600', 'bg' => 'bg-amber-100'],
+                'blue' => ['from' => 'from-blue-500', 'to' => 'to-cyan-400', 'shadow' => 'shadow-blue-500/30'],
+                'violet' => ['from' => 'from-violet-500', 'to' => 'to-purple-400', 'shadow' => 'shadow-violet-500/30'],
+                'green' => ['from' => 'from-green-500', 'to' => 'to-emerald-400', 'shadow' => 'shadow-green-500/30'],
+                'amber' => ['from' => 'from-amber-500', 'to' => 'to-orange-400', 'shadow' => 'shadow-amber-500/30'],
             ];
             $color_theme = $colors[$kpi['color']];
             echo <<<HTML
-            <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                <div class="flex items-center justify-between">
-                     <span class="{$color_theme['bg']} {$color_theme['text']} p-3 rounded-lg">
-                        <i class="{$kpi['icon']} fa-lg"></i>
-                    </span>
+            <a href="#" data-spa-link data-view="{$kpi['view']}" class="block bg-gradient-to-br {$color_theme['from']} {$color_theme['to']} p-5 rounded-2xl shadow-lg {$color_theme['shadow']} text-white hover:-translate-y-1.5 transition-all duration-300 relative overflow-hidden group">
+                <div class="absolute -right-3 -bottom-3 text-white/20 group-hover:scale-110 transition-transform duration-300">
+                    <i class="{$kpi['icon']} fa-4x"></i>
                 </div>
-                <div class="mt-4">
-                    <p class="text-3xl font-bold text-slate-800">{$kpi['count']}</p>
-                    <p class="text-sm font-semibold text-slate-500">{$kpi['title']}</p>
+                <div class="relative z-10">
+                    <p class="text-3xl font-bold">{$kpi['count']}</p>
+                    <p class="text-xs sm:text-sm font-semibold mt-1">{$kpi['title']}</p>
                 </div>
-                 <a href="#" data-spa-link data-view="{$kpi['view']}" class="text-xs font-semibold text-slate-400 hover:text-green-600 mt-4 inline-block">Ver todos &rarr;</a>
-            </div>
+            </a>
 HTML;
         }
         ?>
@@ -130,11 +123,11 @@ HTML;
 
     <!-- Cuentas por Cobrar Resumen -->
     <div class="mb-8">
-        <a href="#" data-spa-link data-view="cuentas-por-cobrar" class="block bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+        <a href="#" data-spa-link data-view="cuentas-por-cobrar" class="block bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 transition-all duration-300">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div class="mb-4 sm:mb-0">
                     <div class="flex items-center">
-                        <span class="bg-rose-100 text-rose-600 p-3 rounded-lg mr-4">
+                        <span class="bg-rose-100 text-rose-600 p-3.5 rounded-lg mr-4">
                             <i class="fa-solid fa-file-invoice-dollar fa-lg"></i>
                         </span>
                         <div>
@@ -162,7 +155,7 @@ HTML;
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Actividad Reciente -->
         <div class="lg:col-span-2">
-             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 h-full">
+             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 h-full">
                 <h2 class="text-lg font-semibold text-slate-800 mb-4">Actividad Reciente</h2>
                 <div class="space-y-1">
                     <?php
@@ -173,14 +166,14 @@ HTML;
                         <a href="#" data-spa-link data-view="<?php echo $caso['view_slug']; ?>" data-action="manage" data-id="<?php echo $caso['ID']; ?>" class="block p-3 rounded-lg hover:bg-slate-50 transition-colors duration-200">
                             <div class="flex justify-between items-center">
                                 <div class="flex items-center min-w-0">
-                                    <div class="w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-slate-100 flex-shrink-0">
+                                    <div class="w-9 h-9 rounded-full flex items-center justify-center mr-3 bg-slate-100 flex-shrink-0">
                                         <i class="fa-solid <?php 
                                             switch($caso['post_type']) {
-                                                case 'impuestos': echo 'fa-calculator'; break;
-                                                case 'traduccion': echo 'fa-language'; break;
-                                                default: echo 'fa-flag-usa';
+                                                case 'impuestos': echo 'fa-calculator text-violet-500'; break;
+                                                case 'traduccion': echo 'fa-language text-amber-500'; break;
+                                                default: echo 'fa-flag-usa text-green-500';
                                             }
-                                        ?> text-slate-500"></i>
+                                        ?>"></i>
                                     </div>
                                     <div class="min-w-0">
                                         <p class="font-semibold text-slate-700 text-sm truncate" title="<?php echo esc_attr($caso['title']); ?>"><?php echo esc_html($caso['title']); ?></p>
@@ -190,7 +183,7 @@ HTML;
                                     </div>
                                 </div>
                                 <div class="text-right flex-shrink-0 ml-4 hidden sm:block">
-                                    <span class="block px-2 py-0.5 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span>
+                                    <span class="block px-2.5 py-0.5 text-xs font-semibold rounded-full <?php echo esc_attr($caso['estado_color']); ?>"><?php echo esc_html($caso['estado']); ?></span>
                                 </div>
                             </div>
                         </a>
@@ -199,7 +192,7 @@ HTML;
                         wp_reset_postdata();
                     else : ?>
                         <div class="text-center py-12">
-                             <div class="text-4xl text-slate-300 mb-4"><i class="fas fa-history"></i></div>
+                             <div class="text-5xl text-slate-300 mb-4"><i class="fas fa-history"></i></div>
                             <h3 class="text-lg font-semibold text-slate-700">No hay actividad reciente</h3>
                             <p class="text-slate-500 text-sm mt-1">Las últimas acciones aparecerán aquí.</p>
                         </div>
@@ -210,21 +203,21 @@ HTML;
 
         <!-- Casos Pendientes -->
         <div class="lg:col-span-1">
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 h-full">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 h-full">
                 <h2 class="text-lg font-semibold text-slate-800 mb-4">Pendiente de Cliente</h2>
                 <div class="space-y-3">
                 <?php if (!empty($pending_cases)):
                     foreach($pending_cases as $p_post): 
                         $p_caso = Flowtax_Ajax_Handler::format_post_data($p_post);
                     ?>
-                        <a href="#" data-spa-link data-view="<?php echo $p_caso['view_slug']; ?>" data-action="manage" data-id="<?php echo $p_caso['ID']; ?>" class="block text-sm p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200">
+                        <a href="#" data-spa-link data-view="<?php echo $p_caso['view_slug']; ?>" data-action="manage" data-id="<?php echo $p_caso['ID']; ?>" class="block text-sm p-3 rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all duration-200">
                             <p class="font-semibold text-slate-700 truncate"><?php echo esc_html($p_caso['title']); ?></p>
                             <p class="text-xs text-slate-500 mt-0.5"><?php echo esc_html($p_caso['cliente_nombre']); ?></p>
                         </a>
                     <?php endforeach; wp_reset_postdata(); 
                     else: ?>
                         <div class="text-center py-12">
-                            <div class="text-4xl text-green-500 mb-4"><i class="fas fa-check-circle"></i></div>
+                            <div class="text-5xl text-emerald-500 mb-4"><i class="fas fa-check-circle"></i></div>
                             <h3 class="text-lg font-semibold text-slate-700">¡Todo al día!</h3>
                             <p class="text-slate-500 text-sm mt-1">No hay casos esperando por clientes.</p>
                         </div>

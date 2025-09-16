@@ -4,16 +4,14 @@ $action = isset($_POST['flowtax_action']) ? $_POST['flowtax_action'] : 'list';
 $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
 
 if ($action === 'list') {
-    // La lógica para mostrar la lista de clientes se maneja dinámicamente con JavaScript.
-    // Este archivo PHP actúa como la plantilla principal para la vista.
 ?>
-    <div class="p-4 sm:p-6 lg:p-8">
+    <div class="p-4 sm:p-6 lg:p-8 animate-fade-in-up">
         <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Clientes</h1>
                 <p class="text-slate-500 mt-1 text-sm">Gestiona la información y los casos de tus clientes.</p>
             </div>
-            <a href="#" data-spa-link data-view="clientes" data-action="create" class="btn-primary flex items-center justify-center">
+            <a href="#" data-spa-link data-view="clientes" data-action="create" class="btn-primary-gradient flex items-center justify-center">
                 <i class="fas fa-plus mr-2"></i>Añadir Cliente
             </a>
         </header>
@@ -41,13 +39,13 @@ if ($action === 'list') {
                          <tr>
                             <td colspan="5">
                                 <div class="text-center py-16">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                      <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                      <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.96a3 3 0 00-4.682 2.72 8.986 8.986 0 003.74.477M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                     <h3 class="mt-2 text-lg font-semibold text-gray-800">No hay clientes</h3>
                                     <p class="mt-1 text-sm text-gray-500">Empieza por añadir tu primer cliente.</p>
                                     <div class="mt-6">
-                                      <a href="#" data-spa-link data-view="clientes" data-action="create" class="btn-primary">
+                                      <a href="#" data-spa-link data-view="clientes" data-action="create" class="btn-primary-gradient">
                                         <i class="fas fa-plus mr-2"></i>
                                         Añadir Cliente
                                       </a>
@@ -67,12 +65,11 @@ if ($action === 'list') {
     $meta = ($id > 0) ? get_post_meta($id) : [];
     $is_edit = $id > 0;
     
-    // Función anónima tradicional para compatibilidad con versiones antiguas de PHP.
     $get_meta = function($key) use ($meta) {
         return isset($meta["_{$key}"]) ? esc_attr($meta["_{$key}"][0]) : '';
     };
 ?>
-    <div class="p-4 sm:p-6 lg:p-8">
+    <div class="p-4 sm:p-6 lg:p-8 animate-fade-in-up">
         <form data-spa-form>
              <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                  <div>
@@ -81,7 +78,7 @@ if ($action === 'list') {
                 </div>
                 <div class="flex items-center space-x-2">
                      <a href="#" data-spa-link data-view="clientes" class="btn-secondary">Volver</a>
-                     <button type="submit" class="btn-primary">
+                     <button type="submit" class="btn-primary-gradient">
                        <i class="fas fa-save mr-2"></i>
                        <span><?php echo $is_edit ? 'Actualizar Cliente' : 'Guardar Cliente'; ?></span>
                     </button>
@@ -168,4 +165,3 @@ if ($action === 'list') {
 <?php
 }
 ?>
-

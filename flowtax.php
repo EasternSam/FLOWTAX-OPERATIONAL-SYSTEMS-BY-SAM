@@ -3,7 +3,7 @@
  * Plugin Name:       Flow Tax Management System (Advanced SPA Edition)
  * Plugin URI:        https://flowtaxmultiservices.com/
  * Description:       Sistema de gestión integral avanzado con arquitectura modular y una interfaz de Single Page Application (SPA) profesional. Ahora funciona con un shortcode.
- * Version:           8.1.0
+ * Version:           8.2.0
  * Author:            Samuel Diaz Pilier
  * Author URI:        https://90s.agency/sam
  * License:           GPL-2.0+
@@ -20,7 +20,7 @@ define('FLOWTAX_DEBUG_MODE', true);
 
 final class Flow_Tax_Multiservices_Advanced {
 
-    const VERSION = '8.1.0';
+    const VERSION = '8.2.0';
     private static $instance;
     private static $is_spa_page = false;
 
@@ -196,7 +196,7 @@ final class Flow_Tax_Multiservices_Advanced {
             'debug_mode' => defined('FLOWTAX_DEBUG_MODE') && FLOWTAX_DEBUG_MODE,
             'watchman_mode_status' => (bool) get_user_meta(get_current_user_id(), 'flowtax_watchman_mode_enabled', true)
         ]);
-        wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css');
+        wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
         
         ob_start();
         $current_user = wp_get_current_user();
@@ -208,7 +208,6 @@ final class Flow_Tax_Multiservices_Advanced {
                     <div class="h-16 flex items-center justify-between px-4 border-b border-slate-200/80">
                         <div class="flex items-center gap-2 overflow-hidden">
                              <img src="https://90s.agency/flowtax/wp-content/uploads/2025/09/LOGO-FLOWTAX@150x.png" alt="FlowTax Logo" class="w-auto flex-shrink-0" style="height: 40px;">
-                             <span class="font-bold text-slate-800 text-sm whitespace-nowrap">Flowtax Multiservices</span>
                         </div>
                          <button id="close-mobile-menu" class="lg:hidden text-slate-500 hover:text-slate-800">
                             <i class="fas fa-times fa-lg"></i>
@@ -227,7 +226,7 @@ final class Flow_Tax_Multiservices_Advanced {
                             ['view' => 'actividad', 'title' => 'Registro de Actividad', 'icon' => 'fa-solid fa-history'],
                         ];
                         foreach ($modules as $module) {
-                            echo '<a href="#" data-spa-link data-view="'.$module['view'].'" class="sidebar-link flex items-center px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-all duration-200">
+                            echo '<a href="#" data-spa-link data-view="'.$module['view'].'" class="sidebar-link flex items-center px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-all duration-200">
                                 <i class="'.$module['icon'].' fa-fw w-6 text-center mr-2.5 text-slate-400"></i>
                                 <span>'.$module['title'].'</span>
                             </a>';
@@ -256,18 +255,18 @@ final class Flow_Tax_Multiservices_Advanced {
                 </aside>
 
                 <div class="flex-1 flex flex-col overflow-hidden">
-                    <header class="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 sticky top-0 z-10">
+                    <header class="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 sticky top-0 z-20">
                         <button id="open-mobile-menu" class="lg:hidden text-slate-600 hover:text-blue-600">
                             <i class="fas fa-bars fa-lg"></i>
                         </button>
                          <div class="flex items-center ml-auto">
-                            <div id="online-users-container" class="flex items-center space-x-[-10px] mr-4 pr-2">
+                            <div id="online-users-container" class="flex items-center space-x-[-12px] mr-4 pr-2">
                                 <!-- Los avatares de usuarios en línea se insertarán aquí -->
                             </div>
                             <div class="relative mr-4" id="notification-bell-container">
-                                <button id="notification-bell-btn" class="text-slate-500 hover:text-slate-800 h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors">
+                                <button id="notification-bell-btn" class="text-slate-500 hover:text-slate-800 h-10 w-10 flex items-center justify-center rounded-full hover:bg-slate-200/70 transition-colors">
                                     <i class="fas fa-bell"></i>
-                                    <span id="notification-indicator" class="absolute top-1 right-1.5 block h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white hidden"></span>
+                                    <span id="notification-indicator" class="absolute top-2 right-2.5 block h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white hidden"></span>
                                 </button>
                                 <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-slate-200 z-50 hidden">
                                     <div class="p-3 border-b border-slate-100"><h4 class="font-semibold text-sm text-slate-800">Notificaciones</h4></div>
@@ -278,11 +277,12 @@ final class Flow_Tax_Multiservices_Advanced {
                                 </div>
                             </div>
                             <span class="text-slate-600 font-medium mr-3 text-sm hidden sm:inline"><?php echo esc_html($current_user->display_name); ?></span>
-                            <img class="h-9 w-9 rounded-full object-cover ring-2 ring-offset-1 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
+                            <img class="h-10 w-10 rounded-full object-cover ring-2 ring-offset-1 ring-slate-200" src="<?php echo esc_url(get_avatar_url($current_user->ID)); ?>" alt="User Avatar">
                         </div>
                     </header>
-                    <main class="flex-1 overflow-x-hidden overflow-y-auto">
-                         <div id="flowtax-app-root"></div>
+                    <main class="flex-1 overflow-x-hidden overflow-y-auto relative">
+                         <div class="absolute inset-0 bg-grid-slate-200/50 [mask-image:linear-gradient(to_bottom,white,transparent)]"></div>
+                         <div id="flowtax-app-root" class="relative"></div>
                     </main>
                 </div>
             </div>
@@ -357,5 +357,3 @@ final class Flow_Tax_Multiservices_Advanced {
 }
 
 Flow_Tax_Multiservices_Advanced::get_instance();
-
-

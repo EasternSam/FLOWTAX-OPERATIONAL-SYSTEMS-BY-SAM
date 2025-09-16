@@ -2,7 +2,6 @@
 class Flowtax_CPTs {
     public static function init() {
         add_action('init', array(__CLASS__, 'register_all'));
-        // CORRECCIÓN: Aseguramos que los términos se creen si no existen en cada carga.
         add_action('init', array(__CLASS__, 'insert_initial_terms'));
     }
 
@@ -50,13 +49,13 @@ class Flowtax_CPTs {
 
     public static function insert_initial_terms() {
         $estados_caso = [
-            'Nuevo' => 'bg-blue-100 text-blue-800',
-            'En Proceso' => 'bg-yellow-100 text-yellow-800',
+            'Nuevo' => 'bg-sky-100 text-sky-800',
+            'En Proceso' => 'bg-amber-100 text-amber-800',
             'Pendiente de Cliente' => 'bg-orange-100 text-orange-800',
             'Listo para Revisión' => 'bg-indigo-100 text-indigo-800',
-            'Completado' => 'bg-green-100 text-green-800',
-            'Archivado' => 'bg-gray-100 text-gray-800',
-            'Cancelado' => 'bg-red-100 text-red-800'
+            'Completado' => 'bg-emerald-100 text-emerald-800',
+            'Archivado' => 'bg-slate-100 text-slate-800',
+            'Cancelado' => 'bg-rose-100 text-rose-800'
         ];
         foreach ($estados_caso as $estado => $color_class) {
             if (!term_exists($estado, 'estado_caso')) {
@@ -68,11 +67,11 @@ class Flowtax_CPTs {
         }
 
         $estados_deuda = [
-            'Pendiente' => 'bg-yellow-100 text-yellow-800',
+            'Pendiente' => 'bg-amber-100 text-amber-800',
             'Abono' => 'bg-sky-100 text-sky-800',
-            'Pagado' => 'bg-green-100 text-green-800',
-            'Vencido' => 'bg-red-100 text-red-800',
-            'Cancelado' => 'bg-gray-100 text-gray-800'
+            'Pagado' => 'bg-emerald-100 text-emerald-800',
+            'Vencido' => 'bg-rose-100 text-rose-800',
+            'Cancelado' => 'bg-slate-100 text-slate-800'
         ];
         foreach ($estados_deuda as $estado => $color_class) {
             if (!term_exists($estado, 'estado_deuda')) {
