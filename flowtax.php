@@ -182,7 +182,26 @@ final class Flow_Tax_Multiservices_Advanced {
 
     public function render_spa_shortcode($atts) {
         if (!current_user_can('manage_options')) {
-            return '<p>Debes iniciar sesión con una cuenta de administrador para usar este sistema. <a href="' . esc_url(wp_login_url(get_permalink())) . '">Iniciar Sesión</a></p>';
+            wp_enqueue_script('tailwindcss-cdn', 'https://cdn.tailwindcss.com?plugins=forms', [], null, false);
+            wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+            $login_url = wp_login_url(get_permalink());
+            ob_start();
+            ?>
+            <div class="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
+                <div class="max-w-sm w-full text-center">
+                    <img src="https://90s.agency/flowtax/wp-content/uploads/2025/09/LOGO-FLOWTAX@150x.png" alt="FlowTax Logo" class="mx-auto mb-8 h-16 sm:h-20">
+                    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-slate-200/80">
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 mb-2">Acceso Restringido</h1>
+                        <p class="text-slate-500 mb-6 text-sm sm:text-base">Debes iniciar sesión con una cuenta de administrador para usar este sistema.</p>
+                        <a href="<?php echo esc_url($login_url); ?>" class="w-full font-bold py-3 px-4 rounded-lg shadow-sm transition-all duration-300 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Iniciar Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <?php
+            return ob_get_clean();
         }
 
         wp_enqueue_script('tailwindcss-cdn', 'https://cdn.tailwindcss.com?plugins=forms', [], null, false);
@@ -234,7 +253,24 @@ final class Flow_Tax_Multiservices_Advanced {
                         ?>
                     </nav>
                      <div class="px-3 py-3 border-t border-slate-200/80">
-                        <div class="mb-2 p-2 rounded-md hover:bg-slate-50">
+                        <div class="p-2 rounded-md">
+                            <label class="text-xs font-semibold text-slate-500 mb-2 block tracking-wide uppercase">Apariencia</label>
+                            <div class="flex items-center gap-2 relative">
+                                <button data-theme-switcher="light" class="theme-switcher-btn flex-1 !py-1.5 !px-2 text-sm">Claro</button>
+                                <button data-theme-switcher="dark" class="theme-switcher-btn flex-1 !py-1.5 !px-2 text-sm">Oscuro</button>
+                                <button id="open-color-palette-btn" class="theme-switcher-btn !px-3"><i class="fas fa-palette"></i></button>
+                                <div id="custom-color-palette" class="absolute bottom-full right-0 mb-2 p-2 bg-white rounded-lg border border-slate-200 grid grid-cols-8 gap-1.5 w-max hidden">
+                                    <?php
+                                    $colors = ['#f8fafc', '#f1f5f9', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b', '#0f172a', '#fecaca', '#fca5a5', '#a3e635', '#4ade80', '#34d399', '#2dd4bf', '#67e8f9', '#7dd3fc', '#93c5fd', '#c7d2fe', '#d8b4fe', '#f0abfc', '#f9a8d4', '#fda4af'];
+                                    foreach($colors as $color) {
+                                        echo '<div class="color-swatch h-6 w-6 rounded-full cursor-pointer border-2 border-slate-300 hover:scale-110 transition-transform" style="background-color: '.$color.';" data-color="'.$color.'"></div>';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 p-2 rounded-md hover:bg-slate-50">
                              <label for="watchman-mode-toggle" class="flex items-center justify-between cursor-pointer">
                                 <span class="flex items-center text-sm font-medium text-slate-600">
                                     <i class="fa-solid fa-shield-halved fa-fw w-6 text-center mr-2.5 text-slate-400"></i>
@@ -255,7 +291,7 @@ final class Flow_Tax_Multiservices_Advanced {
                 </aside>
 
                 <div class="flex-1 flex flex-col overflow-hidden">
-                    <header class="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 sticky top-0 z-20">
+                    <header id="spa-top-bar" class="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 sticky top-0 z-20">
                         <button id="open-mobile-menu" class="lg:hidden text-slate-600 hover:text-blue-600">
                             <i class="fas fa-bars fa-lg"></i>
                         </button>
@@ -281,7 +317,7 @@ final class Flow_Tax_Multiservices_Advanced {
                         </div>
                     </header>
                     <main class="flex-1 overflow-x-hidden overflow-y-auto relative">
-                         <div class="absolute inset-0 bg-grid-slate-200/50 [mask-image:linear-gradient(to_bottom,white,transparent)]"></div>
+                         <div id="main-bg-grid" class="absolute inset-0"></div>
                          <div id="flowtax-app-root" class="relative"></div>
                     </main>
                 </div>
@@ -357,3 +393,4 @@ final class Flow_Tax_Multiservices_Advanced {
 }
 
 Flow_Tax_Multiservices_Advanced::get_instance();
+

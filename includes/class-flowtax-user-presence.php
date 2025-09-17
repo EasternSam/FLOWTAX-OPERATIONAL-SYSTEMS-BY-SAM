@@ -64,4 +64,16 @@ class Flowtax_User_Presence {
 
         return $online_users;
     }
+
+    /**
+     * Elimina la actividad de un usuario, marcándolo como offline.
+     *
+     * @param int $user_id El ID del usuario.
+     */
+    public static function remove_user_activity($user_id) {
+        if (empty($user_id)) {
+            return;
+        }
+        delete_transient('flowtax_user_online_' . $user_id);
+    }
 }

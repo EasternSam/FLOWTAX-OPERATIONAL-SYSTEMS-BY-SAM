@@ -18,7 +18,8 @@ class Flowtax_Ajax_Handler {
             'get_live_activity',
             'send_reminder',
             'update_payment',
-            'get_online_users'
+            'get_online_users',
+            'disconnect_user'
         ];
         foreach ($ajax_actions as $action) {
             add_action("wp_ajax_flowtax_{$action}", array(__CLASS__, "handle_{$action}"));
@@ -83,6 +84,15 @@ class Flowtax_Ajax_Handler {
         Flowtax_Activity_Log::log($action_string, $deuda_id, 'deuda');
         
         wp_send_json_success(Flowtax_Debugger::send_logs_in_ajax_response(['message' => 'Pago actualizado con éxito.']));
+    }
+
+    public static function handle_disconnect_user() {
+        check_ajax_referer('flowtax_ajax_nonce', 'nonce');
+        $user_id = get_current_user_id();
+        if ($user_id > 0) {
+            Flowtax_User_Presence::remove_user_activity($user_id);
+        }
+        wp_send_json_success();
     }
 
     public static function handle_get_online_users() {
@@ -650,5 +660,3 @@ class Flowtax_Ajax_Handler {
         return $base_data;
     }
 }
-
-

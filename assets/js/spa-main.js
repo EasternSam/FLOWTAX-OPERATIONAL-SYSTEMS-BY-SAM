@@ -42,6 +42,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 this.initReminderModal();
                 this.initPaymentModal();
                 this.initUserPresence();
+                this.initThemeSwitcher();
+                window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
             }
             window.addEventListener('popstate', this.handlePopState.bind(this));
             document.body.addEventListener('click', this.handleGlobalClick.bind(this));
@@ -51,6 +53,107 @@ document.addEventListener('DOMContentLoaded', function () {
                 appRoot.addEventListener('input', this.handleDebouncedInput.bind(this));
                 appRoot.addEventListener('change', this.handleFileInput.bind(this));
                 this.loadViewFromUrl();
+            }
+        },
+
+        handleBeforeUnload() {
+            const data = new URLSearchParams({
+                action: 'flowtax_disconnect_user',
+                nonce: flowtax_ajax.nonce
+            });
+            navigator.sendBeacon(flowtax_ajax.ajax_url, data);
+        },
+
+        initThemeSwitcher() {
+            const themeButtons = document.querySelectorAll('[data-theme-switcher]');
+            const openPaletteBtn = document.getElementById('open-color-palette-btn');
+            const palette = document.getElementById('custom-color-palette');
+            
+            const savedTheme = localStorage.getItem('flowtax_theme') || 'light';
+            const savedColor = localStorage.getItem('flowtax_theme_color');
+            if (savedTheme === 'custom' && savedColor) {
+                this.setTheme('custom', savedColor);
+            } else {
+                this.setTheme(savedTheme);
+            }
+
+            themeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const theme = button.dataset.themeSwitcher;
+                    this.setTheme(theme);
+                });
+            });
+            
+            if (openPaletteBtn && palette) {
+                 openPaletteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    palette.classList.toggle('hidden');
+                });
+
+                palette.addEventListener('click', (e) => {
+                    const swatch = e.target.closest('.color-swatch');
+                    if (swatch) {
+                        const color = swatch.dataset.color;
+                        this.setTheme('custom', color);
+                        palette.classList.add('hidden');
+                    }
+                });
+
+                document.body.addEventListener('click', (e) => {
+                    if (!palette.classList.contains('hidden') && !openPaletteBtn.contains(e.target) && !palette.contains(e.target)) {
+                        palette.classList.add('hidden');
+                    }
+                });
+            }
+        },
+        
+        getLuminance(hex) {
+            hex = hex.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance;
+        },
+
+        setTheme(theme, customColor = null) {
+            const body = document.body;
+            const bgGrid = document.getElementById('main-bg-grid');
+            const themeButtons = document.querySelectorAll('[data-theme-switcher]');
+            const openPaletteBtn = document.getElementById('open-color-palette-btn');
+
+            // Reset all active states first
+            themeButtons.forEach(btn => btn.classList.remove('active'));
+            if (openPaletteBtn) openPaletteBtn.classList.remove('active');
+            
+            let finalTheme = theme;
+
+            if (theme === 'custom' && customColor) {
+                const luminance = this.getLuminance(customColor);
+                finalTheme = luminance > 0.5 ? 'light' : 'dark';
+                
+                bgGrid.style.backgroundColor = customColor;
+                if (openPaletteBtn) openPaletteBtn.classList.add('active');
+
+                localStorage.setItem('flowtax_theme', 'custom');
+                localStorage.setItem('flowtax_theme_color', customColor);
+            } else {
+                bgGrid.style.backgroundColor = ''; // Clear custom color if not custom theme
+                localStorage.setItem('flowtax_theme', theme);
+                localStorage.removeItem('flowtax_theme_color');
+            }
+
+            // Apply the final theme (light or dark) to the body
+            if (finalTheme === 'dark') {
+                body.setAttribute('data-theme', 'dark');
+                // Only mark the 'dark' button as active if it was the direct source
+                const darkBtn = document.querySelector('[data-theme-switcher="dark"]');
+                if (darkBtn && theme === 'dark') darkBtn.classList.add('active');
+            } else {
+                body.removeAttribute('data-theme');
+                 // Only mark the 'light' button as active if it was the direct source
+                const lightBtn = document.querySelector('[data-theme-switcher="light"]');
+                if (lightBtn && theme === 'light') lightBtn.classList.add('active');
             }
         },
         
@@ -89,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         initUserPresence() {
             this.updateOnlineUsersList();
-            userPresenceInterval = setInterval(() => this.updateOnlineUsersList(), 20000); // Actualiza cada 20 segundos
+            userPresenceInterval = setInterval(() => this.updateOnlineUsersList(), 5000); // Actualiza cada 5 segundos
         },
 
         async updateOnlineUsersList() {
@@ -118,17 +221,41 @@ document.addEventListener('DOMContentLoaded', function () {
             users.forEach(user => {
                 const userLink = document.createElement('a');
                 userLink.href = '#';
-                userLink.className = 'online-user-avatar';
+                userLink.className = 'online-user-item';
                 userLink.dataset.spaLink = true;
                 userLink.dataset.view = 'actividad';
                 userLink.dataset.id = user.user_id;
                 userLink.title = `${user.display_name} - ${user.location}`;
 
+                const avatarContainer = document.createElement('div');
+                avatarContainer.className = 'avatar-container';
+
                 const userImg = document.createElement('img');
                 userImg.src = user.avatar_url;
                 userImg.alt = user.display_name;
 
-                userLink.appendChild(userImg);
+                const onlineIndicator = document.createElement('span');
+                onlineIndicator.className = 'online-indicator';
+
+                avatarContainer.appendChild(userImg);
+                avatarContainer.appendChild(onlineIndicator);
+                
+                const userInfoContainer = document.createElement('div');
+                userInfoContainer.className = 'user-presence-info';
+                
+                const userName = document.createElement('span');
+                userName.className = 'user-name';
+                userName.textContent = user.display_name;
+                
+                const userLocation = document.createElement('span');
+                userLocation.className = 'user-location';
+                userLocation.textContent = user.location;
+
+                userInfoContainer.appendChild(userName);
+                userInfoContainer.appendChild(userLocation);
+
+                userLink.appendChild(avatarContainer);
+                userLink.appendChild(userInfoContainer);
                 container.appendChild(userLink);
             });
         },
@@ -757,7 +884,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         link.setAttribute('data-view', caso.view_slug);
                         link.setAttribute('data-action', 'manage');
                         link.setAttribute('data-id', caso.ID);
-                        link.setAttribute('data-spa-link', 'true'); // <-- The fix is here
+                        link.setAttribute('data-spa-link', 'true');
                     }
                     clone.querySelector('.font-semibold').textContent = caso.title;
                     clone.querySelector('.text-xs.text-slate-500').textContent = caso.singular_name;
@@ -828,7 +955,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const link = event.target.closest('[data-spa-link]');
             if (link) {
                 event.preventDefault();
-                // Using getAttribute for robustness, to match the change in renderClientePerfil.
                 const view = link.getAttribute('data-view');
                 const action = link.getAttribute('data-action') || 'list';
                 const id = link.getAttribute('data-id') || 0;
@@ -1173,5 +1299,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
     App.init();
 });
-
 
